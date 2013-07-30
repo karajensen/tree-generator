@@ -1,5 +1,5 @@
 /****************************************************************
-* Kara Jensen (mail@karajensen.com) 2012
+* Kara Jensen (KaraPeaceJensen@gmail.com) 20.0f12
 * 4x4 right handed matrix class
  RH MATRIX IN FORM OF [OPENGL]:
  | 11 12 13 x |  | Right.x  Up.x  Forward.x  Pos.x |
@@ -108,7 +108,8 @@ public:
     * Sets all the matrix components
     * @param each component to be set
     */
-    void Set(float M11,float M12,float M13,float M14,float M21,float M22,float M23,float M24,float M31,float M32,float M33,float M34)
+    void Set(float M11,float M12,float M13,float M14,float M21,
+        float M22,float M23,float M24,float M31,float M32,float M33,float M34)
     {
         m11 = M11;  m12 = M12;  m13 = M13;  m14 = M14;
         m21 = M21;  m22 = M22;  m23 = M23;  m24 = M24;
@@ -165,7 +166,8 @@ public:
     * Constructor
     * @param each component to be set
     */
-    MATRIX(float M11,float M12,float M13,float M14,float M21,float M22,float M23,float M24,float M31,float M32,float M33,float M34)
+    MATRIX(float M11,float M12,float M13,float M14,float M21,float M22,
+        float M23,float M24,float M31,float M32,float M33,float M34)
     { 
         Set(M11,M12,M13,M14,M21,M22,M23,M24,M31,M32,M33,M34); 
     }

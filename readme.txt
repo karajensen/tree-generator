@@ -29,11 +29,13 @@ HOW TO INSTALL:
 • Inside Maya, go to Windows -> Settings/Preferences -> Plugin Manager
 • If the plugin isn't showing up in the list, go to browse and select open it
 • Once the plugin is installed, make sure "Loaded" is clicked
-• Use 'GenerateTree' for a default tree or 'TreeGenerator' for the GUI in the command window
+• Use 'GenerateTree' for a default tree 
+• Use 'TreeGenerator' for the GUI in the command window
 
 HOW TO DEBUG:
 • Click Debug. Click okay for any popups that appear.
 • In Maya, you will need to load the plugin in the plugin manager. 
   It's useful to write a MEL script that does this for you:
   loadPlugin "C:\\Users\\Kara\\Desktop\\TreeFarmerPlugin\\Debug\\mayaplugin.mll";
-• Use 'GenerateTree' for a default tree or 'TreeGenerator' for the GUI in the command window
+• Use 'GenerateTree' for a default tree 
+• Use 'TreeGenerator' for the GUI in the command window

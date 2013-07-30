@@ -21,4 +21,5 @@ HOW TO INSTALL:
 • Inside Maya, go to Windows -> Settings/Preferences -> Plugin Manager
 • If the plugin isn't showing up in the list, go to browse and select open it
 • Once the plugin is installed, make sure "Loaded" is clicked
-• Use 'GenerateTree' for a default tree or 'TreeGenerator' for the GUI in the command window
+• Use 'GenerateTree' for a default tree 
+• Use 'TreeGenerator' for the GUI in the command window

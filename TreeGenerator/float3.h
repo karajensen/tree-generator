@@ -1,5 +1,5 @@
 /****************************************************************
-* Kara Jensen (mail@karajensen.com) 2012
+* Kara Jensen (KaraPeaceJensen@gmail.com) 2012
 * Vector Class
 *****************************************************************/
 #pragma once
@@ -18,6 +18,7 @@ public:
     */
     FLOAT3(): x(0.0f), y(0.0f), z(0.0f) {};
     FLOAT3(float X, float Y, float Z): x(X), y(Y), z(Z) {};
+
 
     /**
     * Testing equality/inequality for vector
@@ -288,6 +289,4 @@ public:
     {
         return (v-(*this)).Length();
     }
-
-
 };

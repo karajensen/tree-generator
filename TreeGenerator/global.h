@@ -62,6 +62,6 @@ template<typename T>
 T ChangeRange(T value, T currentRangeInner,
     T currentRangeOuter, T newRangeInner, T newRangeOuter)
 {
-	return ((value-currentRangeInner)*((newRangeOuter-newRangeInner)
+    return ((value-currentRangeInner)*((newRangeOuter-newRangeInner)
         /(currentRangeOuter-currentRangeInner)))+newRangeInner;
 }
