@@ -9,9 +9,6 @@
     <None Include="..\Release\readme.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="float3.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="matrix.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -22,6 +19,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="treegenerator.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vector3.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

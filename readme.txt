@@ -2,6 +2,7 @@
 - fix syntax error
 - copy 2011/2012 .mll to release
 - test tree generator changes
+- update folio code
 
 =====================================================================================
 TREE GENERATER PLUGIN

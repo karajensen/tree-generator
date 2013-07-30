@@ -138,14 +138,14 @@ struct LeafData
 */
 struct Section
 {
-    FLOAT3 position;
+    Float3 position;
     float radius;
 
     Section()
     {
     }
 
-    Section(const FLOAT3& p, float r)
+    Section(const Float3& p, float r)
     { 
         position = p; 
         radius = r; 
@@ -165,8 +165,8 @@ struct Section
 */
 struct Branch
 {
-    MATRIX rotmat;
-    MATRIX scalemat;
+    Matrix rotmat;
+    Matrix scalemat;
     int parentIndex;
     int sectionIndex;
     int layer;
@@ -188,7 +188,7 @@ struct Branch
 */
 struct Disk
 {
-    deque<FLOAT3> points;
+    deque<Float3> points;
 };
 
 /**
@@ -198,11 +198,11 @@ struct Leaf
 {
     int layer;
     MObject mesh;
-    FLOAT3 position;
-    FLOAT3 sectionAxis;
+    Float3 position;
+    Float3 sectionAxis;
     float sectionRadius;
 
-    Leaf(const FLOAT3& p, const FLOAT3& a, int l, float r)
+    Leaf(const Float3& p, const Float3& a, int l, float r)
     { 
         position = p; 
         sectionAxis = a; 
@@ -216,7 +216,7 @@ struct Leaf
 */
 struct Turtle
 {
-    MATRIX world;
+    Matrix world;
     double radius;
     int branchIndex;
     int sectionIndex;

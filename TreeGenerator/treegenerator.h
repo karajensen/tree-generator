@@ -93,7 +93,7 @@ private:
     * @param how much should the turtle rotate from the initial position
     * @param how much variation of the distance/rotation values
     */
-    void DetermineForwardMovement(Turtle* turtle, FLOAT3& result, 
+    void DetermineForwardMovement(Turtle* turtle, Float3& result, 
         double forward, double ang, double variation);
     
     /**
@@ -214,7 +214,7 @@ private:
     deque<Layer> m_layers;      ///< All layers of the tree
     deque<Branch> m_branches;   ///< All branches of the tree including the trunk
     deque<Leaf> m_leaves;       ///< All leaves of the tree
-    deque<FLOAT3> m_leafverts;  ///< Vertices for a leaf
+    deque<Float3> m_leafverts;  ///< Vertices for a leaf
     MIntArray m_leafpolycounts; ///< Poly count for a leaf
     MIntArray m_leafindices;    ///< Indices for a leaf
     MFloatArray m_leafU;        ///< U value for UVs for a leaf

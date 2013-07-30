@@ -19,7 +19,7 @@
 #include <string>
 #include <deque>
 #include <ctime>
-#include "float3.h"
+#include "vector3.h"
 #include "matrix.h"
 
 #include <maya/MGlobal.h>

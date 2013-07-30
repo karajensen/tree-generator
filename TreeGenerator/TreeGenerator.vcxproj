@@ -96,7 +96,7 @@
     <None Include="treegeneratorGUI.mel" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="float3.h" />
+    <ClInclude Include="vector3.h" />
     <ClInclude Include="global.h" />
     <ClInclude Include="matrix.h" />
     <ClInclude Include="treegenerator.h" />

@@ -220,7 +220,7 @@ bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
     deque<Turtle> stack;
 
     //Set up variables
-    FLOAT3 result;
+    Float3 result;
     int TrunkIndex = 0;
     char current;
     double a = 0;
@@ -357,7 +357,7 @@ bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
                     && (turtle.layerIndex >= (int)m_leafdata.leafStartLayer) 
                     && (turtle.sectionIndex != 0))
                 {
-                    FLOAT3 axis = m_branches[turtle.branchIndex].sections[turtle.sectionIndex].position 
+                    Float3 axis = m_branches[turtle.branchIndex].sections[turtle.sectionIndex].position 
                         - m_branches[turtle.branchIndex].sections[turtle.sectionIndex-1].position;
 
                     axis.Normalize();
@@ -634,7 +634,7 @@ bool TreeGenerator::CreateMeshes()
     float angle = 360.0f/m_meshdata.trunkfaces;
     for(unsigned int i = 0; i < m_meshdata.trunkfaces; ++i)
     {
-        disk[0].points.push_back(FLOAT3(
+        disk[0].points.push_back(Float3(
             static_cast<float>(cos(DegToRad(i*angle))), 0, 
             static_cast<float>(sin(DegToRad(i*angle)))));
     }
@@ -649,7 +649,7 @@ bool TreeGenerator::CreateMeshes()
         angle = 360.0f/facenumber;
         for(int i = 0; i < facenumber; ++i)
         {
-            disk[j].points.push_back(FLOAT3(
+            disk[j].points.push_back(Float3(
                 static_cast<float>(cos(DegToRad(i*angle))), 0, 
                 static_cast<float>(sin(DegToRad(i*angle)))));
         }
@@ -768,7 +768,7 @@ bool TreeGenerator::CreateLeaves()
     //create leaves
     for(int i = 0; i < vertno; ++i)
     {
-        m_leafverts.push_back(FLOAT3());
+        m_leafverts.push_back(Float3());
     }
     for(unsigned int i = 0, c = 0; i < m_leaves.size(); ++i, ++c)
     {
@@ -800,7 +800,7 @@ void TreeGenerator::CreateLeaf(Leaf* leaf, MString& meshname, MObject& layer)
         (m_leafdata.wv*((static_cast<double>(rand()%201)/100.0f)-1.0f)));
     float h = static_cast<float>(m_leafdata.h + 
         (m_leafdata.hv*((static_cast<double>(rand()%201)/100.0f)-1.0f)));
-    MATRIX mat = MATRIX::CreateRotateArbitrary(leaf->sectionAxis,static_cast<float>(DegToRad(a)));
+    Matrix mat = Matrix::CreateRotateArbitrary(leaf->sectionAxis,static_cast<float>(DegToRad(a)));
 
     if(m_leafdata.bend != 0)
     {
@@ -830,7 +830,7 @@ void TreeGenerator::CreateLeaf(Leaf* leaf, MString& meshname, MObject& layer)
     }
 
     //move verts roughly outside branch
-    FLOAT3 extra = m_leafverts[3]-m_leafverts[1];
+    Float3 extra = m_leafverts[3]-m_leafverts[1];
     extra = (leaf->sectionAxis.Cross(extra)).Cross(leaf->sectionAxis);
     extra.Normalize();
     extra *= (leaf->sectionRadius/2.0f);
@@ -900,7 +900,7 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
 
     for(int j = 0; j < facenumber; ++j)
     {
-        FLOAT3 p = disk->points[j];
+        Float3 p = disk->points[j];
         p *= branch->scalemat;
         p *= branch->rotmat;
         p += branch->sections[0].position; 
@@ -930,24 +930,24 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
         if(i == sectionnumber-1)
         {
             //rotate in direction of past axis
-            FLOAT3 up(0,1.0f,0);
-            FLOAT3 pastaxis = branch->sections[i].position-branch->sections[i-1].position;
-            FLOAT3 rotaxis = pastaxis.Cross(up);
+            Float3 up(0,1.0f,0);
+            Float3 pastaxis = branch->sections[i].position-branch->sections[i-1].position;
+            Float3 rotaxis = pastaxis.Cross(up);
             rotaxis.Normalize();
             float angle = up.Angle(pastaxis);
-            branch->rotmat = MATRIX::CreateRotateArbitrary(rotaxis,angle);
+            branch->rotmat = Matrix::CreateRotateArbitrary(rotaxis,angle);
         }
         else
         {
             //rotate half way between past/future
-            FLOAT3 up(0,1.0f,0);
-            FLOAT3 axis = (branch->sections[i].position-branch->sections[i-1].position) 
+            Float3 up(0,1.0f,0);
+            Float3 axis = (branch->sections[i].position-branch->sections[i-1].position) 
                 + (branch->sections[i+1].position-branch->sections[i].position); //past axis+future axis
 
-            FLOAT3 rotaxis = axis.Cross(up);
+            Float3 rotaxis = axis.Cross(up);
             rotaxis.Normalize();
             float angle = up.Angle(axis);
-            branch->rotmat = MATRIX::CreateRotateArbitrary(rotaxis,angle);
+            branch->rotmat = Matrix::CreateRotateArbitrary(rotaxis,angle);
         }
 
         //find v coordinate
@@ -958,7 +958,7 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
         for(int j = 0; j < facenumber; ++j)
         {
             //create vertex
-            FLOAT3 p = disk->points[j];
+            Float3 p = disk->points[j];
             p *= branch->scalemat; //scale
             p *= branch->rotmat; //rotate
             p += S->position; //translate
@@ -989,11 +989,11 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
     if((branch->children.size() == 0) && m_meshdata.capends)
     {
         //create middle vert
-        FLOAT3 middle = branch->sections[branch->sections.size()-1].position;
+        Float3 middle = branch->sections[branch->sections.size()-1].position;
         vertices.append(middle.x, middle.y, middle.z);
 
         //create middle uvs
-        FLOAT3 middlepos(0.5,0,0.5);
+        Float3 middlepos(0.5,0,0.5);
         u.append(middlepos.x);
         v.append(middlepos.z);
         int middleuv = u.length()-1;
@@ -1003,9 +1003,9 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
         int topindex = vertices.length()-2;
         int midindex = vertices.length()-1;
         int topj = facenumber-1;
-        MATRIX capscale;
+        Matrix capscale;
         capscale.Scale(0.25f);
-        FLOAT3 p1;
+        Float3 p1;
 
         //note, this goes backwards
         for(int j = 0; j < facenumber; ++j)
@@ -1054,7 +1054,7 @@ void TreeGenerator::CreateCurve(Branch* branch, MString& meshname, MObject& laye
 {
     MPointArray editPoints;
     MFnNurbsCurve curveFn;
-    FLOAT3 p;
+    Float3 p;
 
     for(unsigned int i = 0; i < branch->sections.size(); ++i)
     {
@@ -1179,7 +1179,7 @@ void TreeGenerator::DeleteNodes()
     sm_dagMod.doIt();
 }
 
-void TreeGenerator::DetermineForwardMovement(Turtle* turtle, FLOAT3& result, 
+void TreeGenerator::DetermineForwardMovement(Turtle* turtle, Float3& result, 
     double forward, double ang, double variation)
 {
     //Get number between -1 and 1
@@ -1189,10 +1189,10 @@ void TreeGenerator::DetermineForwardMovement(Turtle* turtle, FLOAT3& result,
     float l = static_cast<float>(((rand()%201)/100.0f)-1.0f);
 
     //determine direction, axis must be normalized
-    result = turtle->world.GetForward();
-    result *= MATRIX::CreateRotateY(static_cast<float>(DegToRad(ang*y)));
-    result *= MATRIX::CreateRotateX(static_cast<float>(DegToRad(ang*x)));
-    result *= MATRIX::CreateRotateZ(static_cast<float>(DegToRad(ang*z)));
+    result = turtle->world.Forward();
+    result *= Matrix::CreateRotateY(static_cast<float>(DegToRad(ang*y)));
+    result *= Matrix::CreateRotateX(static_cast<float>(DegToRad(ang*x)));
+    result *= Matrix::CreateRotateZ(static_cast<float>(DegToRad(ang*z)));
 
     //determine forward amount
     result *= static_cast<float>(forward + (variation*l));
