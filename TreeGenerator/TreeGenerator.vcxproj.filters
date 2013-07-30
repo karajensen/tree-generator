@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <None Include="..\.gitignore" />
+    <None Include="..\readme.txt" />
+    <None Include="treegeneratorGUI.mel">
+      <Filter>Source Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="float3.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="matrix.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="global.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="treegenerator_components.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="treegenerator.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{6b42422d-814e-4753-ae50-519e311bc97b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="treegenerator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
