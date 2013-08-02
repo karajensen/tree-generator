@@ -1,5 +1,5 @@
 /****************************************************************
-* Kara Jensen (mail@karajensen.com) 2012
+* Kara Jensen (mail@karajensen.com)
 * Window and Generation Plugin Code for the Tree Generator
 * The Window command will create a gui interface in Maya. 
 * This gui communicates with the Command Generation class

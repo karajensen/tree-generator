@@ -1,9 +1,3 @@
-
-- fix syntax error
-- copy 2011/2012 .mll to release
-- test tree generator changes
-- update folio code
-
 =====================================================================================
 TREE GENERATER PLUGIN
 =====================================================================================
@@ -26,6 +20,7 @@ TIPS ON REDUCING POLY COUNT:
 • Use a combination of 'G' and 'F' to give height rather than solely 'F'
 
 HOW TO INSTALL:
+• Open the dated folder that corresponds to your version of Maya
 • Place "TreeGenerator.mll" and "TreeGeneratorGUI.mel" in Maya20XX\bin\plug-ins
 • Inside Maya, go to Windows -> Settings/Preferences -> Plugin Manager
 • If the plugin isn't showing up in the list, go to browse and select open it
