@@ -131,7 +131,6 @@
                     -font "boldLabelFont" 
                     -collapsable true;  
     }
-    
     global proc gt_GenerateTree(int $preview)
     {
         string $gt_RArray[];
