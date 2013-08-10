@@ -11,6 +11,7 @@
 *.vcxproj.user
 *.dll.metagen
 ipch/
+html/
 Resources/
 Versions/
 TestResults/
