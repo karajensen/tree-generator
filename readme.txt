@@ -6,7 +6,7 @@ www.KaraJensen.com
 https://github.com/karajensen/tree-generator.git
 =====================================================================================
 
-VISUAL STUDIO VERSION REQUIRED: 2010
+VISUAL STUDIO VERSION REQUIRED: 2012
 ENVIRONMENT VARIABLES REQUIRED: $(MAYA_DIR) C:\Program Files (x86)\Autodesk\Maya20XX\
 
 TIPS ON USING:
@@ -32,6 +32,6 @@ HOW TO DEBUG:
 • Click Debug. Click okay for any popups that appear.
 • In Maya, you will need to load the plugin in the plugin manager. 
   It's useful to write a MEL script that does this for you:
-  loadPlugin "C:\\Users\\Kara\\Desktop\\TreeFarmerPlugin\\Debug\\mayaplugin.mll";
+  loadPlugin "D:\\Projects\\TreeGenerator\\TreeGenerator\\treegenerator.mll;
 • Use 'GenerateTree' for a default tree 
 • Use 'TreeGenerator' for the GUI in the command window

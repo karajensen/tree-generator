@@ -13,6 +13,7 @@
 ipch/
 Resources/
 Versions/
+TestResults/
 TreeGenerator/._LOG.txt
 TreeGenerator/Debug/
 TreeGenerator/Release/

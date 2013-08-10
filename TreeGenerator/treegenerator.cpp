@@ -1,14 +1,30 @@
-﻿#include "treegenerator.h"
+﻿////////////////////////////////////////////////////////////////////////////////////////
+// Kara Jensen - mail@karajensen.com
+////////////////////////////////////////////////////////////////////////////////////////
+
+#include "treegenerator.h"
 #include <fstream>
+
+namespace
+{
+    const MString GENERATE_COMMAND("GenerateTree");
+    const MString GUI_COMMAND("TreeGenerator");
+}
 
 int TreeGenerator::sm_treeNumber = 0;
 unsigned int TreeGenerator::sm_treeSeed = 0;
 MDagModifier TreeGenerator::sm_dagMod;
 
-namespace /*anon*/
+TreeGenerator::TreeGenerator() :
+    MPxCommand(),
+    m_progressIncreaseAmount(0),
+    m_progressStepAmount(0),
+    m_meshdata(8, 8, 2, false, false, true, false),
+    m_leafdata(true, 2.0f, 4.0f, 1.0f, 1.0f, 1.0f, 2),
+    m_treedata(2.0, 0.9, 0.001, 10),
+    m_fxdata(0.732982, 0.495995, 0.388067, 0.083772, 
+        0.0572824, 0.013138, true, true, true, 0.2, 0.01)
 {
-    const MString GENERATE_COMMAND("GenerateTree");
-    const MString GUI_COMMAND("TreeGenerator");
 }
 
 MStatus initializePlugin(MObject obj)
@@ -62,7 +78,8 @@ MStatus TreeGeneratorWindow::doIt(const MArgList& args)
     HMODULE hm = nullptr;
 
     GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | 
-        GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCSTR)"treegenerator.mll", &hm);
+        GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, 
+        (LPCSTR)"treegenerator.mll", &hm);
     GetModuleFileNameA(hm, buffer, sizeof(buffer));
 
     // Convert the path to the gui .mel
@@ -103,11 +120,6 @@ MStatus TreeGenerator::doIt(const MArgList& args)
     unsigned int iterations = 4;
     BranchData trunk(1.0, 5.0, 0.2, 22.2, 5.0, 0.9);
     BranchData branch(1.0, 15.0, 0.5, 22.2, 5.0, 0.95);
-    m_meshdata.Set(8, 8, 2, false, false, true, false, false);
-    m_leafdata.Set(true, 2.0f, 4.0f, 1.0f, 1.0f, 1.0f, 2);
-    m_treedata.Set(2.0, 0.9, 0.001, 10);
-    m_fxdata.Set(0.732982, 0.495995, 0.388067, 0.083772, 
-        0.0572824, 0.013138, true, true, true, 0.2, 0.01);
 
     //Create the default rules
     unsigned int rulep[sm_ruleNumber];
@@ -135,7 +147,7 @@ MStatus TreeGenerator::doIt(const MArgList& args)
     if(m_meshdata.preview)
     {
         m_meshdata.createAsCurves = true;
-        m_leafdata.leafTree = false;
+        m_leafdata.treeHasLeaves = false;
         m_fxdata.createTreeShader = false;
         m_fxdata.createLeafShader = false;
     }
@@ -149,7 +161,7 @@ MStatus TreeGenerator::doIt(const MArgList& args)
 
     //Progress window setup
     int progress = 2;
-    if(m_leafdata.leafTree) 
+    if(m_leafdata.treeHasLeaves) 
     { 
         ++progress; 
     }
@@ -186,7 +198,7 @@ MStatus TreeGenerator::doIt(const MArgList& args)
     return MStatus::kSuccess;
 }
 
-bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
+bool TreeGenerator::BuildTheTree(BranchData& branch, BranchData& trunk)
 {
     /* TURTLE COMMANDS
     * F: draw forward
@@ -210,7 +222,7 @@ bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
     //Create the turtle
     Turtle turtle;
     turtle.world.RotateXLocal(static_cast<float>(DegToRad(90.0f)));
-    BranchData* values = &TF;
+    BranchData* values = &trunk;
     turtle.radius = m_treedata.initialRadius;
     turtle.branchIndex = 0;
     turtle.sectionIndex = 0;
@@ -232,7 +244,7 @@ bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
     m_branches[TrunkIndex].sections.push_back(Section(
         0,0,0,static_cast<float>(m_treedata.initialRadius)));
 
-    //NAVIGATE THE TURTLE
+    //navigate the turtle
     for(unsigned int j = 0, c = 0; j < m_treedata.rule.size(); ++j, ++c)
     {
         current = m_treedata.rule[j];
@@ -240,23 +252,16 @@ bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
         {
             case 'F':
             {
-                //create a new branch if continuing forward on an ended branch 
-                //(this is needed for the merging algorithm)
-                if(turtle.branchEnded && m_meshdata.merge)
-                {
-                    BuildNewBranch(turtle,TrunkIndex,values,BF);   
-                }
-
                 //move forward with drawing 
                 DetermineForwardMovement(&turtle, result, values->forward, 
-                    values->forwardang, values->forwardvar);
+                    values->forwardAngle, values->forwardVariance);
                 turtle.world.Translate(result);
                 
                 //change radius
-                turtle.radius *= values->radiusdec;
-                if(turtle.radius < m_treedata.minRadius)
+                turtle.radius *= values->radiusDecrease;
+                if(turtle.radius < m_treedata.minimumRadius)
                 { 
-                    turtle.radius  = m_treedata.minRadius; 
+                    turtle.radius  = m_treedata.minimumRadius; 
                 }
 
                 //add section to branch
@@ -267,16 +272,9 @@ bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
             }
             case 'G':
             {
-                //create a new branch if continuing forward on an ended branch 
-                //(this is needed for the merging algorithm)
-                if(turtle.branchEnded && m_meshdata.merge)
-                {
-                    BuildNewBranch(turtle,TrunkIndex,values,BF);
-                }
-
                 //move forward without drawing
                 DetermineForwardMovement(&turtle, result, values->forward, 
-                    values->forwardang, values->forwardvar);
+                    values->forwardAngle, values->forwardVariance);
                 turtle.world.Translate(result);
                 break;
             }
@@ -287,7 +285,7 @@ bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
                 {
                     turtle.branchEnded = true;
                     stack.push_back(Turtle(turtle));
-                    BuildNewBranch(turtle,TrunkIndex,values,BF);
+                    BuildNewBranch(turtle,TrunkIndex,values,branch);
                 }
                 break;
             }
@@ -298,7 +296,7 @@ bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
                 {
                     turtle = stack[stack.size()-1];
                     stack.pop_back();
-                    (turtle.branchIndex == TrunkIndex) ? values = &TF : values = &BF;
+                    (turtle.branchIndex == TrunkIndex) ? values = &trunk : values = &branch;
                 }
                 break;
             }
@@ -307,7 +305,7 @@ bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
                 //rotate positive Y
                 a = (double(rand()%201)/100.0f)-1.0f;
                 turtle.world.RotateYLocal(static_cast<float>(
-                    DegToRad(values->angle+(values->anglevar*a))));
+                    DegToRad(values->angle+(values->angleVariance*a))));
                 break;
             }
             case '-':
@@ -315,7 +313,7 @@ bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
                 //rotate negative y
                 a = (double(rand()%201)/100.0f)-1.0f;
                 turtle.world.RotateYLocal(static_cast<float>(
-                    DegToRad(-values->angle+(values->anglevar*a))));
+                    DegToRad(-values->angle+(values->angleVariance*a))));
                 break;
             }
             case '>':
@@ -323,7 +321,7 @@ bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
                 //rotate positive x
                 a = (double(rand()%201)/100.0f)-1.0f;
                 turtle.world.RotateXLocal(static_cast<float>(
-                    DegToRad(values->angle+(values->anglevar*a))));
+                    DegToRad(values->angle+(values->angleVariance*a))));
                 break;
             }
             case '<':
@@ -331,7 +329,7 @@ bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
                 //rotate negative x
                 a = (double(rand()%201)/100.0f)-1.0f;
                 turtle.world.RotateXLocal(static_cast<float>(
-                    DegToRad(-values->angle+(values->anglevar*a))));
+                    DegToRad(-values->angle+(values->angleVariance*a))));
                 break;
             }
             case '^':
@@ -339,7 +337,7 @@ bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
                 //rotate positive z
                 a = (double(rand()%201)/100.0f)-1.0f;
                 turtle.world.RotateZLocal(static_cast<float>(
-                    DegToRad(values->angle+(values->anglevar*a))));
+                    DegToRad(values->angle+(values->angleVariance*a))));
                 break;
             }
             case 'v':
@@ -347,14 +345,14 @@ bool TreeGenerator::BuildTheTree(BranchData& BF, BranchData& TF)
                 //rotate negative z
                 a = (double(rand()%201)/100.0f)-1.0f;
                 turtle.world.RotateZLocal(static_cast<float>(
-                    DegToRad(-values->angle+(values->anglevar*a))));
+                    DegToRad(-values->angle+(values->angleVariance*a))));
                 break;
             }
             case 'L':
             {
                 //Create a leaf
-                if(m_leafdata.leafTree && (turtle.branchIndex != TrunkIndex)
-                    && (turtle.layerIndex >= (int)m_leafdata.leafStartLayer) 
+                if(m_leafdata.treeHasLeaves && (turtle.branchIndex != TrunkIndex)
+                    && (turtle.layerIndex >= static_cast<int>(m_leafdata.leafLayer)) 
                     && (turtle.sectionIndex != 0))
                 {
                     Float3 axis = m_branches[turtle.branchIndex].sections[turtle.sectionIndex].position 
@@ -435,22 +433,22 @@ bool TreeGenerator::CreateRuleString(int iterations, MString rules[], MString ru
     return true;
 }
 
-bool TreeGenerator::BranchIsAlive(unsigned int& j)
+bool TreeGenerator::BranchIsAlive(unsigned int& index)
 {
     //check prob of branch dying
     unsigned int prob = rand()%101;
-    if(prob < m_treedata.branchDeathProb)
+    if(prob < m_treedata.branchDeathProbability)
     {
         //remove all symbols up until corresponding ]
         int searchnumber = 1;
-        while(j < m_treedata.rule.size())
+        while(index < m_treedata.rule.size())
         {
-            ++j;
-            if(m_treedata.rule[j] == '[')
+            ++index;
+            if(m_treedata.rule[index] == '[')
             {
                 searchnumber++;
             }
-            if(m_treedata.rule[j] == ']')
+            if(m_treedata.rule[index] == ']')
             {
                 searchnumber--;
             }
@@ -464,19 +462,19 @@ bool TreeGenerator::BranchIsAlive(unsigned int& j)
     return true;
 }
 
-void TreeGenerator::BuildNewBranch(Turtle& turtle, int TrunkIndex, BranchData* values, BranchData& BF)
+void TreeGenerator::BuildNewBranch(Turtle& turtle, int TrunkIndex, BranchData* values, BranchData& trunk)
 {
     //change values used if moving from trunk to branch
     if(turtle.branchIndex == TrunkIndex)
     {
-        values = &BF;
+        values = &trunk;
     }
 
     //change radius
-    turtle.radius *= m_treedata.branchRadDec;
-    if(turtle.radius < m_treedata.minRadius)
+    turtle.radius *= m_treedata.branchRadiusDecrease;
+    if(turtle.radius < m_treedata.minimumRadius)
     { 
-        turtle.radius = m_treedata.minRadius;
+        turtle.radius = m_treedata.minimumRadius;
     }
     
     //start a new branch
@@ -539,7 +537,7 @@ bool TreeGenerator::MeshTheTree()
         }
     }
     //leaf the tree
-    if(m_leafdata.leafTree)
+    if(m_leafdata.treeHasLeaves)
     {
         if(!CreateLeaves())
         { 
@@ -572,7 +570,7 @@ bool TreeGenerator::CreateTreeGroup()
         sm_dagMod.renameNode(m_layers[i].layer,m_treedata.treename+"_Layer"+i);
         sm_dagMod.reparentNode(m_layers[i].layer,m_treedata.tree);
         
-        if(m_leafdata.leafTree)
+        if(m_leafdata.treeHasLeaves)
         {
             m_layers[i].leaves = transFn.create();
             sm_dagMod.renameNode(m_layers[i].leaves,m_treedata.treename+"_Layer"+i+"_Leaves");
@@ -641,7 +639,7 @@ bool TreeGenerator::CreateMeshes()
     for(unsigned int j = 1; j < m_layers.size(); ++j)
     {
         disk.push_back(Disk());
-        int facenumber = m_meshdata.branchfaces - (m_meshdata.facedec*j);
+        int facenumber = m_meshdata.branchfaces - (m_meshdata.faceDecrease*j);
         if(facenumber < 3)
         { 
             facenumber = 3; 
@@ -695,7 +693,7 @@ bool TreeGenerator::CreateLeaves()
 
     int vertno = 0;
     float bleed = static_cast<float>(m_fxdata.uvBleedSpace);
-    if(m_leafdata.bend == 0)
+    if(m_leafdata.bendAmount == 0)
     {
         vertno = 4;
         m_leafpolycounts.append(4);
@@ -796,20 +794,27 @@ void TreeGenerator::CreateLeaf(Leaf* leaf, MString& meshname, MObject& layer)
 
     //Create the verts
     double a = double(rand()%721)-360.0f;
-    float w = static_cast<float>(m_leafdata.w + 
-        (m_leafdata.wv*((static_cast<double>(rand()%201)/100.0f)-1.0f)));
-    float h = static_cast<float>(m_leafdata.h + 
-        (m_leafdata.hv*((static_cast<double>(rand()%201)/100.0f)-1.0f)));
-    Matrix mat = Matrix::CreateRotateArbitrary(leaf->sectionAxis,static_cast<float>(DegToRad(a)));
 
-    if(m_leafdata.bend != 0)
+    float w = static_cast<float>(m_leafdata.width + 
+        (m_leafdata.widthVariance*((static_cast<double>(
+        rand()%201)/100.0f)-1.0f)));
+
+    float h = static_cast<float>(m_leafdata.height + 
+        (m_leafdata.heightVariance*((static_cast<double>(
+        rand()%201)/100.0f)-1.0f)));
+
+    Matrix mat = Matrix::CreateRotateArbitrary(
+        leaf->sectionAxis,static_cast<float>(DegToRad(a)));
+
+    if(m_leafdata.bendAmount != 0)
     {
         m_leafverts[0].Set(-(w/2),0,0);
         m_leafverts[1].Set((w/2),0,0);
 
-        m_leafverts[2].Set(-(w/2),static_cast<float>(m_leafdata.bend
+        m_leafverts[2].Set(-(w/2),static_cast<float>(m_leafdata.bendAmount
             *((static_cast<double>(rand()%201)/100.0f)-1.0f)),(h/2));
-        m_leafverts[3].Set((w/2),static_cast<float>(m_leafdata.bend
+
+        m_leafverts[3].Set((w/2),static_cast<float>(m_leafdata.bendAmount
             *((static_cast<double>(rand()%201)/100.0f)-1.0f)),(h/2));
 
         m_leafverts[4].Set(-(w/2),0,h);
@@ -890,19 +895,19 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
     //Get matrices for initial ring
     if(parent != nullptr) 
     { 
-        branch->scalemat = parent->scalemat;
-        branch->rotmat = parent->rotmat; 
+        branch->scaleMat = parent->scaleMat;
+        branch->rotationMat = parent->rotationMat; 
     }   
     else          
     { 
-        branch->scalemat.Scale(branch->sections[0].radius); 
+        branch->scaleMat.Scale(branch->sections[0].radius); 
     }
 
     for(int j = 0; j < facenumber; ++j)
     {
         Float3 p = disk->points[j];
-        p *= branch->scalemat;
-        p *= branch->rotmat;
+        p *= branch->scaleMat;
+        p *= branch->rotationMat;
         p += branch->sections[0].position; 
         vertices.append(p.x,p.y,p.z);
         u.append(ChangeRange(static_cast<float>(j),0.0f,
@@ -922,11 +927,11 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
 
         //create scale matrix
         Section* S = &branch->sections[i];
-        branch->scalemat.MakeIdentity();
-        branch->scalemat.Scale(S->radius);
+        branch->scaleMat.MakeIdentity();
+        branch->scaleMat.Scale(S->radius);
 
         //create rotation matrix
-        branch->rotmat.MakeIdentity();
+        branch->rotationMat.MakeIdentity();
         if(i == sectionnumber-1)
         {
             //rotate in direction of past axis
@@ -935,7 +940,7 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
             Float3 rotaxis = pastaxis.Cross(up);
             rotaxis.Normalize();
             float angle = up.Angle(pastaxis);
-            branch->rotmat = Matrix::CreateRotateArbitrary(rotaxis,angle);
+            branch->rotationMat = Matrix::CreateRotateArbitrary(rotaxis,angle);
         }
         else
         {
@@ -947,7 +952,7 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
             Float3 rotaxis = axis.Cross(up);
             rotaxis.Normalize();
             float angle = up.Angle(axis);
-            branch->rotmat = Matrix::CreateRotateArbitrary(rotaxis,angle);
+            branch->rotationMat = Matrix::CreateRotateArbitrary(rotaxis,angle);
         }
 
         //find v coordinate
@@ -959,8 +964,8 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
         {
             //create vertex
             Float3 p = disk->points[j];
-            p *= branch->scalemat; //scale
-            p *= branch->rotmat; //rotate
+            p *= branch->scaleMat; //scale
+            p *= branch->rotationMat; //rotate
             p += S->position; //translate
             vertices.append(p.x,p.y,p.z);
             u.append(u[j]);
@@ -986,7 +991,7 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
     }
 
     //CAP THE END OF THE BRANCH
-    if((branch->children.size() == 0) && m_meshdata.capends)
+    if((branch->children.size() == 0) && m_meshdata.capEnds)
     {
         //create middle vert
         Float3 middle = branch->sections[branch->sections.size()-1].position;
@@ -1030,7 +1035,7 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
     }
 
     //Create the mesh
-    branch->vertno = vertices.length();
+    branch->vertNumber = vertices.length();
     branch->mesh = meshfn.create(vertices.length(), 
         polycounts.length(), vertices, polycounts, indices, u, v);
 
@@ -1268,34 +1273,46 @@ MSyntax TreeGenerator::newSyntax()
 
     syntax.addFlag("-m", "-meshdata", MSyntax::kBoolean, 
         MSyntax::kBoolean, MSyntax::kBoolean );
+
     syntax.addFlag("-tf", "-tforward", MSyntax::kDouble, 
         MSyntax::kDouble, MSyntax::kDouble);
+
     syntax.addFlag("-f", "-forward", MSyntax::kDouble, 
         MSyntax::kDouble, MSyntax::kDouble);
+
     syntax.addFlag("-fa", "-faces", MSyntax::kUnsigned,
         MSyntax::kUnsigned, MSyntax::kUnsigned);
+
     syntax.addFlag("-rp","-prerule", MSyntax::kString, 
         MSyntax::kString, MSyntax::kString);
 
     syntax.addFlag("-r", "-radius", MSyntax::kDouble, MSyntax::kDouble, 
         MSyntax::kDouble, MSyntax::kDouble, MSyntax::kDouble);
+
     syntax.addFlag("-ld", "-leafdata", MSyntax::kDouble, MSyntax::kDouble, 
         MSyntax::kDouble, MSyntax::kDouble, MSyntax::kDouble);
+
     syntax.addFlag("-c", "-color", MSyntax::kDouble, MSyntax::kDouble,
         MSyntax::kDouble, MSyntax::kDouble, MSyntax::kDouble, MSyntax::kDouble);
+
     syntax.addFlag("-cd", "-colordata", MSyntax::kBoolean, MSyntax::kBoolean, 
         MSyntax::kBoolean, MSyntax::kDouble, MSyntax::kDouble);
 
     syntax.addFlag("-r1","-rule1", MSyntax::kString, MSyntax::kString, 
         MSyntax::kString, MSyntax::kString, MSyntax::kString);
+
     syntax.addFlag("-r2","-rule2", MSyntax::kString, MSyntax::kString, 
         MSyntax::kString, MSyntax::kString, MSyntax::kString);
+
     syntax.addFlag("-rc1","-rulec1", MSyntax::kString, MSyntax::kString,
         MSyntax::kString, MSyntax::kString, MSyntax::kString);
+
     syntax.addFlag("-rc2","-rulec2", MSyntax::kString, MSyntax::kString, 
         MSyntax::kString, MSyntax::kString, MSyntax::kString);
+
     syntax.addFlag("-rp1","-rulep1", MSyntax::kUnsigned, MSyntax::kUnsigned,
         MSyntax::kUnsigned, MSyntax::kUnsigned, MSyntax::kUnsigned);
+
     syntax.addFlag("-rp2","-rulep2", MSyntax::kUnsigned, MSyntax::kUnsigned, 
         MSyntax::kUnsigned, MSyntax::kUnsigned, MSyntax::kUnsigned);
 
@@ -1311,37 +1328,37 @@ void TreeGenerator::GetFlagArguments(const MArgDatabase& argData, MString prerul
     if(argData.numberOfFlagsUsed() > 0)
     {
         argData.getFlagArgument("-fi", 0, m_leafdata.file);             
-        argData.getFlagArgument("-l", 0, m_leafdata.leafTree);
-        argData.getFlagArgument("-l", 1, m_leafdata.leafStartLayer);    
-        argData.getFlagArgument("-ld", 0, m_leafdata.bend);
-        argData.getFlagArgument("-ld", 1, m_leafdata.h);                
-        argData.getFlagArgument("-ld", 2, m_leafdata.w);
-        argData.getFlagArgument("-ld", 3, m_leafdata.hv);               
-        argData.getFlagArgument("-ld", 4, m_leafdata.wv);
+        argData.getFlagArgument("-l", 0, m_leafdata.treeHasLeaves);
+        argData.getFlagArgument("-l", 1, m_leafdata.leafLayer);    
+        argData.getFlagArgument("-ld", 0, m_leafdata.bendAmount);
+        argData.getFlagArgument("-ld", 1, m_leafdata.height);                
+        argData.getFlagArgument("-ld", 2, m_leafdata.width);
+        argData.getFlagArgument("-ld", 3, m_leafdata.heightVariance);               
+        argData.getFlagArgument("-ld", 4, m_leafdata.widthVariance);
         argData.getFlagArgument("-m", 0, m_meshdata.createAsCurves);   
-        argData.getFlagArgument("-m", 1, m_meshdata.capends);   
+        argData.getFlagArgument("-m", 1, m_meshdata.capEnds);   
         argData.getFlagArgument("-m", 2, m_meshdata.randomize);        
         argData.getFlagArgument("-v", 0, m_meshdata.preview);
         argData.getFlagArgument("-fa", 0, m_meshdata.trunkfaces);      
         argData.getFlagArgument("-fa", 1, m_meshdata.branchfaces);
-        argData.getFlagArgument("-fa", 2, m_meshdata.facedec);         
+        argData.getFlagArgument("-fa", 2, m_meshdata.faceDecrease);         
         argData.getFlagArgument("-i", 0, iterations);
         argData.getFlagArgument("-a", 0, branch.angle);                
-        argData.getFlagArgument("-a", 1, branch.anglevar);          
+        argData.getFlagArgument("-a", 1, branch.angleVariance);          
         argData.getFlagArgument("-f", 0, branch.forward);              
-        argData.getFlagArgument("-f", 1, branch.forwardvar);        
-        argData.getFlagArgument("-f", 2, branch.forwardang);           
-        argData.getFlagArgument("-r", 2, branch.radiusdec);
+        argData.getFlagArgument("-f", 1, branch.forwardVariance);        
+        argData.getFlagArgument("-f", 2, branch.forwardAngle);           
+        argData.getFlagArgument("-r", 2, branch.radiusDecrease);
         argData.getFlagArgument("-ta", 0, trunk.angle);                
-        argData.getFlagArgument("-ta", 1, trunk.anglevar); 
+        argData.getFlagArgument("-ta", 1, trunk.angleVariance); 
         argData.getFlagArgument("-tf", 0, trunk.forward);               
-        argData.getFlagArgument("-tf", 1, trunk.forwardvar); 
-        argData.getFlagArgument("-tf", 2, trunk.forwardang);           
-        argData.getFlagArgument("-r", 3, trunk.radiusdec); 
+        argData.getFlagArgument("-tf", 1, trunk.forwardVariance); 
+        argData.getFlagArgument("-tf", 2, trunk.forwardAngle);           
+        argData.getFlagArgument("-r", 3, trunk.radiusDecrease); 
         argData.getFlagArgument("-r", 0, m_treedata.initialRadius);    
-        argData.getFlagArgument("-r", 1, m_treedata.branchRadDec);  
-        argData.getFlagArgument("-r", 4, m_treedata.minRadius);       
-        argData.getFlagArgument("-bd", 0, m_treedata.branchDeathProb);
+        argData.getFlagArgument("-r", 1, m_treedata.branchRadiusDecrease);  
+        argData.getFlagArgument("-r", 4, m_treedata.minimumRadius);       
+        argData.getFlagArgument("-bd", 0, m_treedata.branchDeathProbability);
         argData.getFlagArgument("-c", 0, m_fxdata.lightcolorR);       
         argData.getFlagArgument("-c", 1, m_fxdata.lightcolorG);     
         argData.getFlagArgument("-c", 2, m_fxdata.lightcolorB);       
@@ -1357,14 +1374,15 @@ void TreeGenerator::GetFlagArguments(const MArgDatabase& argData, MString prerul
         argData.getFlagArgument("-rp", 1, start);                      
         argData.getFlagArgument("-rp", 2, postrule);
 
-        for(int i = 0; i < 5; ++i)
+        const int HALF_MAX_ROWS = 5;
+        for(int i = 0; i < HALF_MAX_ROWS; ++i)
         {
             argData.getFlagArgument("-r1",i,rules[i]);    
             argData.getFlagArgument("-rc1",i,rulec[i]);  
             argData.getFlagArgument("-rp1",i,rulep[i]);
-            argData.getFlagArgument("-r2",i,rules[5+i]);  
-            argData.getFlagArgument("-rc2",i,rulec[5+i]); 
-            argData.getFlagArgument("-rp2",i,rulep[5+i]);
+            argData.getFlagArgument("-r2",i,rules[HALF_MAX_ROWS+i]);  
+            argData.getFlagArgument("-rc2",i,rulec[HALF_MAX_ROWS+i]); 
+            argData.getFlagArgument("-rp2",i,rulep[HALF_MAX_ROWS+i]);
         }
     }
 }

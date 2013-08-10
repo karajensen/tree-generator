@@ -1,7 +1,6 @@
-/****************************************************************
-* Kara Jensen (mail@karajensen.com)
-* Generation Plugin Structure Information
-*****************************************************************/
+////////////////////////////////////////////////////////////////////////////////////////
+// Kara Jensen - mail@karajensen.com
+////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 #include "global.h"
@@ -11,99 +10,143 @@
 */
 struct ShadingData
 {
-    double lightcolorR, lightcolorB, lightcolorG;
-    double darkcolorR, darkcolorB, darkcolorG;
-    double bumpAmount;
-    double uvBleedSpace;
-    bool createTreeShader;
-    bool createLeafShader;
-    bool createBump;
+    double lightcolorR;     ///< Red component of the light color for shading 
+    double lightcolorB;     ///< Blue component of the light color for shading
+    double lightcolorG;     ///< Green component of the light color for shading
+    double darkcolorR;      ///< Red component of the dark color for shading
+    double darkcolorB;      ///< Blue component of the dark color for shading
+    double darkcolorG;      ///< Green component of the dark color for shading
+    double bumpAmount;      ///< Bump depth for tree shading
+    double uvBleedSpace;    ///< Space allowed between UV points and edge
+    bool createTreeShader;  ///< Whether to create a shader for the tree
+    bool createLeafShader;  ///< Whether to create a shader for the leaves
+    bool createBump;        ///< Whether to use bump mapping with the tree shader
 
-    void Set(double lr, double lg, double lb, double dr, 
-        double dg, double db, bool treeShader, bool leafShader, 
-        bool bump, double bumpamount, double bleed)
+    /**
+    * Constructor
+    * @param lightRGB The light color components for shading
+	* @param darkRGB The dark color components for shading
+	* @param usetreeShader Whether to create a tree shader or not
+    * @param useleafshader Whether to create a shader for the leaves
+    * @param bump Whether to use bump mapping with the tree shader
+    * @param bleedAmount Space allowed between UV points and edge
+    */
+    ShadingData(double lightR, double lightG, double lightB, double darkR, 
+        double darkG, double darkB, bool usetreeShader, bool useleafshader, 
+        bool bump, double bump_amount, double bleedAmount) :
+            lightcolorR(lightR), 
+            lightcolorG(lightG),   
+            lightcolorB(lightB),  
+            darkcolorR(darkR),
+            darkcolorG(darkG),
+            darkcolorB(darkB),
+            bumpAmount(bump_amount),
+            uvBleedSpace(bleedAmount),
+            createLeafShader(useleafshader),
+            createTreeShader(usetreeShader),
+            createBump(bump)
     {
-        uvBleedSpace = bleed;
-        lightcolorR = lr;   
-        darkcolorR = dr;
-        lightcolorG = lg;   
-        darkcolorG = dg;
-        lightcolorB = lb;   
-        darkcolorB = db;
-        createTreeShader = treeShader;
-        createLeafShader = leafShader;
-        createBump = bump;
-        bumpAmount = bumpamount;
     }
 };
 
 /**
-* Holds rule data for the overall tree
+* Holds rule data for designing the overall tree
 */
 struct TreeData
 {
-    double initialRadius;
-    double branchRadDec;
-    double minRadius;
-    unsigned branchDeathProb;
-    string rule;
-    MString treename;
-    MString treeshadername;
-    MObject tree;
+    double initialRadius;              ///< The starting radius for the tree
+    double branchRadiusDecrease;       ///< The amount to decrease the radius
+    double minimumRadius;              ///< The minimum allowed radius
+    unsigned branchDeathProbability;   ///< The probability from 0-100% of the branch dying
+    string rule;                       ///< The rule string the tree abides by
+    MString treename;                  ///< The name of the tree
+    MString treeshadername;            ///< The name of the tree's shader
+    MObject tree;                      ///< Tree Maya object
 
-    void Set(double rad, double raddec, 
-        double minrad, unsigned branchdeath)
+    /**
+    * Constructor
+    * @param radius The starting radius for the tree
+    * @param radiusDecrease The amount to decrease the radius
+    * @param minRadius The minimum allowed radius
+    * @param deathProbability The probability from 0-100% of the branch dying
+    */
+    TreeData(double radius, double radiusDecrease, double minRadius, unsigned deathProbability) :
+        initialRadius(radius),
+        branchRadiusDecrease(radiusDecrease),
+        minimumRadius(minRadius),
+        branchDeathProbability(deathProbability)
     {
-        minRadius = minrad;
-        rule = "";
-        initialRadius = rad;
-        branchRadDec = raddec;
-        branchDeathProb = branchdeath;
     }
 };
 
 /**
-* Holds rule data an individual trunk/branch
+* Holds rule data for an individual trunk/branch
 */
 struct BranchData
 { 
-    double forward, forwardang, forwardvar;
-    double angle, anglevar;
-    double radiusdec;
-    BranchData(double f, double fangle, double fvar, 
-        double a, double avar, double raddec)
+    double forward;             ///< The amount to move forward for the branch
+    double forwardAngle;        ///< The angle to move forward at in degrees
+    double forwardVariance;     ///< The amount to vary the forward movement
+    double angle;               ///< The amount to rotate when creating the branch in degrees
+    double angleVariance;       ///< The amount to vary the angle of the branch during creation
+    double radiusDecrease;      ///< The amount to decrease the branch radius
+
+    /**
+    * Constructor
+    * @param forwardAmount The amount to move forward for the branch
+    * @param forward_angle The angle to move forward at in degrees
+    * @param forward_variance The amount to vary the forward movement
+    * @param branchAngle The amount to rotate when creating the branch in degrees
+    * @param branchAngleVariance The amount to vary the angle of the branch during creation
+    * @param radius_decrease The amount to decrease the branch radius
+    */
+    BranchData(double forwardAmount, double forward_angle, double forward_variance, 
+        double branchAngle, double branchAngleVariance, double radius_decrease) :
+            forward(forwardAmount),
+            forwardAngle(forward_angle),
+            forwardVariance(forward_variance),
+            angle(branchAngle),
+            angleVariance(branchAngleVariance),
+            radiusDecrease(radius_decrease)
     {
-        forward = f;            
-        angle = a;      
-        forwardang = fangle;    
-        anglevar = avar;
-        forwardvar = fvar;      
-        radiusdec = raddec;
     }
 };
 
 /**
 * Holds data for a mesh of a branch
 */
-struct MeshStruct
+struct MeshData
 {
-    int maxLayers;
-    bool preview, merge, capends, createAsCurves, randomize;
-    unsigned trunkfaces, branchfaces, facedec;
+    int maxLayers;                      ///< Number of mesh layers for the branch
+    bool preview;                       ///< Whether or not this is a preview tree   
+    bool capEnds;                       ///< Whether to Fill in tips of tree with polygons
+    bool createAsCurves;                ///< Whether the tree is created via curves or mesh
+    bool randomize;                     ///< Whether or not to randomize the tree
+    unsigned int trunkfaces;            ///< Number of faces around the trunk
+    unsigned int branchfaces;           ///< Number of faces around branches
+    unsigned int faceDecrease;          ///< Number of faces to reduce per branch layer
 
-    void Set(unsigned TrunkFaces, unsigned BranchFaces, 
-        unsigned FaceDec, bool Curves, bool Capends, 
-        bool Rand, bool Merge, bool Preview)
-    { 
-        maxLayers = 0;              
-        preview = Preview; 
-        randomize = Rand;           
-        merge = Merge;
-        trunkfaces = TrunkFaces;    
-        branchfaces = BranchFaces; 
-        facedec = FaceDec;          
-        createAsCurves = Curves; 
-        capends = Capends;
+    /**
+    * Constructor
+    * @param numTrunkFaces Number of faces around the trunk
+    * @param numBranchFaces Number of faces around branches
+    * @param numFaceDecrease Number of faces to reduce per branch layer
+    * @param useCurves Whether the tree is created via curves or mesh
+    * @param capBranchEnds Whether to Fill in tips of tree with polygons
+    * @param randomizeTree Number of faces around the trunk
+    * @param previewTree Whether or not this is a preview tree   
+    */
+    MeshData(unsigned numTrunkFaces, unsigned numBranchFaces, unsigned numFaceDecrease,
+        bool useCurves, bool capBranchEnds, bool randomizeTree, bool previewTree) :
+            maxLayers(0),
+            preview(previewTree),
+            capEnds(capBranchEnds),
+            createAsCurves(useCurves),
+            randomize(randomizeTree),
+            trunkfaces(numTrunkFaces),
+            branchfaces(numBranchFaces),
+            faceDecrease(numFaceDecrease)
+    {
     }
 };
 
@@ -112,24 +155,36 @@ struct MeshStruct
 */
 struct LeafData
 {
-    MString leafshadername;
-    unsigned leafStartLayer;
-    bool leafTree;
-    double w, h, wv, hv, bend;
-    MString file;
+    MString leafshadername;     ///< Name of the shader
+    unsigned leafLayer;         ///< Current layer that is being leafed
+    bool treeHasLeaves;         ///< Whether or not the tree has leaves
+    double width;               ///< Width of the leaf mesh
+    double height;              ///< Height of the leaf mesh
+    double widthVariance;       ///< Amount to vary the width of the leaf
+    double heightVariance;      ///< Amount to vary the height of the leaf
+    double bendAmount;          ///< Amount to bend the leaf
+    MString file;               ///< Filename for the leaf texture
 
-    void Set(bool LeafTree, double W, double H, double WVar, 
-        double HVar, double Bend, unsigned LeafLayer)
+    /**
+    * Constructor
+    * @param leafTree Whether or not the tree has leaves
+    * @param leafWidth Width of the leaf mesh
+    * @param leafHeight Height of the leaf mesh
+    * @param leafWidthVariance Amount to vary the width of the leaf
+    * @param leafHeightVariance Amount to vary the height of the leaf
+    * @param bend Amount to bend the leaf
+    * @param layerNumber Current layer that is being leafed
+    */
+    LeafData(bool leafTree, double leafWidth, double leafHeight, double leafWidthVariance, 
+        double leafHeightVariance, double bend, unsigned layerNumber) :
+            leafLayer(layerNumber),
+            treeHasLeaves(leafTree),
+            width(leafWidth),
+            height(leafHeight),
+            widthVariance(leafWidthVariance),
+            heightVariance(leafHeightVariance),
+            bendAmount(bend)
     {
-        leafshadername = "";
-        leafStartLayer = LeafLayer;
-        w = W;  
-        h = H;  
-        wv = WVar;  
-        hv = HVar;
-        bend = Bend;
-        leafTree = LeafTree;
-        file = "";
     }
 };
 
@@ -138,25 +193,37 @@ struct LeafData
 */
 struct Section
 {
-    Float3 position;
-    float radius;
+    Float3 position;    ///< Position of the section
+    float radius;       ///< Radius of the section
 
-    Section()
+    /**
+    * Constructor
+    */
+    Section() :
+        radius(0.0f)
     {
     }
 
-    Section(const Float3& p, float r)
+    /**
+    * Constructor
+    * @param pos The position of the section
+    * @param rad The radius of the section
+    */
+    Section(const Float3& pos, float rad) :
+        position(pos),
+        radius(rad)
     { 
-        position = p; 
-        radius = r; 
     }
 
-    Section(float x, float y, float z, float r)
+    /**
+    * Constructor
+    * @param x/y/z The position of the section
+    * @param rad The radius of the section
+    */
+    Section(float x, float y, float z, float rad) :
+        position(x, y, z),
+        radius(rad)
     { 
-        position.x = x; 
-        position.y = y;
-        position.z = z;
-        radius = r;
     }
 };
 
@@ -165,30 +232,34 @@ struct Section
 */
 struct Branch
 {
-    Matrix rotmat;
-    Matrix scalemat;
-    int parentIndex;
-    int sectionIndex;
-    int layer;
-    int vertno;
-    bool mergedtop;
-    bool mergedbot;
-    MObject mesh;
-    deque<Section> sections;
-    deque<int> children;
+    Matrix rotationMat;       ///< Branch rotation matrix
+    Matrix scaleMat;          ///< Branch scale matrix
+    int parentIndex;          ///< Index of the parent to this branch
+    int sectionIndex;         ///< Index of the branch
+    int layer;                ///< Layer that the branch exists on
+    int vertNumber;           ///< Number of vertices of this branch
+    MObject mesh;             ///< The maya mesh for the branch
+    deque<Section> sections;  ///< The number of sections for this branch
+    deque<int> children;      ///< A container of children extending from this branch
 
-    Branch()
+    /**
+    * Constructor
+    */
+    Branch() :
+        parentIndex(-1),
+        sectionIndex(-1),
+        layer(0),
+        vertNumber(0)
     { 
-        mergedtop = mergedbot = false; 
     }
 };
 
 /**
-* Holds radius disk vertex information of a branch
+* Holds disk vertex information of a branch
 */
 struct Disk
 {
-    deque<Float3> points;
+    deque<Float3> points; ///< vertices of a branch disk
 };
 
 /**
@@ -196,18 +267,25 @@ struct Disk
 */
 struct Leaf
 {
-    int layer;
-    MObject mesh;
-    Float3 position;
-    Float3 sectionAxis;
-    float sectionRadius;
+    int layer;              ///< Layer the leaf exists on
+    MObject mesh;           ///< Mesh for the leaf
+    Float3 position;        ///< Position of the leaf mesh
+    Float3 sectionAxis;     ///< Axis for the branch section that leaf lives on
+    float sectionRadius;    ///< Radius for the branch section that leaf lives on
 
-    Leaf(const Float3& p, const Float3& a, int l, float r)
-    { 
-        position = p; 
-        sectionAxis = a; 
-        layer = l; 
-        sectionRadius = r; 
+    /**
+    * Constructor
+    * @param pos Position of the leaf mesh
+    * @param axis Axis for the branch section that leaf lives on
+    * @param layerIndex Layer the leaf exists on
+    * @param radius Radius for the branch section that leaf lives on
+    */
+    Leaf(const Float3& pos, const Float3& axis, int layerIndex, float radius) :
+        layer(layerIndex),
+        position(pos),
+        sectionAxis(axis),
+        sectionRadius(radius)
+    {
     }
 };
 
@@ -216,13 +294,26 @@ struct Leaf
 */
 struct Turtle
 {
-    Matrix world;
-    double radius;
-    int branchIndex;
-    int sectionIndex;
-    int branchParent;
-    int layerIndex;
-    bool branchEnded;
+    Matrix world;       ///< Turtle world matrix
+    double radius;      ///< Current radius of the tree section generating
+    int branchIndex;    ///< Current index of the branch generating
+    int sectionIndex;   ///< Current index of the branch section generation
+    int branchParent;   ///< Index of the parent to the branch generating
+    int layerIndex;     ///< Current index of the layer generating
+    bool branchEnded;   ///< Whether branch has ended or not
+
+    /**
+    * Constructor
+    */
+    Turtle() :
+        radius(0.0f),
+        branchIndex(-1),
+        sectionIndex(-1),
+        branchParent(0),
+        layerIndex(0),
+        branchEnded(false)
+    {
+    }
 };
 
 /**
@@ -230,7 +321,7 @@ struct Turtle
 */
 struct Layer
 {
-    MObject layer;
-    MObject branches;
-    MObject leaves;
+    MObject layer;      ///< Layer Maya object
+    MObject branches;   ///< Branches Maya object
+    MObject leaves;     ///< Leaves Maya object
 };
