@@ -990,7 +990,7 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
         v.append(vcoordinate);
     }
 
-    //CAP THE END OF THE BRANCH
+    //cap the end of the branch
     if((branch->children.size() == 0) && m_meshdata.capEnds)
     {
         //create middle vert
