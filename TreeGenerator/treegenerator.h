@@ -213,7 +213,6 @@ private:
     static MDagModifier sm_dagMod;         ///< Maya DAG node modifier object
     static int sm_treeNumber;              ///< Number of trees generated in the current Maya session
     static unsigned int sm_treeSeed;       ///< Randomly generated seed
-    static const int sm_ruleNumber = 10;   ///< Maximum amount of rules allowed
 
     unsigned int m_progressIncreaseAmount; ///< How much each step can increase the progress bar overall by
     unsigned int m_progressStepAmount;     ///< Minimum amount at one time the progress bar can increase by
