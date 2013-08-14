@@ -579,4 +579,5 @@
     
     showWindow TreeGenerator;
     window -edit -width $gt_WinWidth -height $gt_WinHeight TreeGenerator;
+
 }

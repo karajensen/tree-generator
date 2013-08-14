@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////////////
-// Kara Jensen - mail@karajensen.com
+// Kara Jensen - mail@karajensen.com - treegenerator.h
 ////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -209,6 +209,7 @@ private:
         MString postrule, MString start, unsigned int& iterations, 
         MString* rules, MString* rulec, unsigned int* rulep, 
         BranchData& branch, BranchData& trunk);
+
 
     static MDagModifier sm_dagMod;         ///< Maya DAG node modifier object
     static int sm_treeNumber;              ///< Number of trees generated in the current Maya session
