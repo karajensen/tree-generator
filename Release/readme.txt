@@ -6,9 +6,8 @@ www.KaraJensen.com
 https://github.com/karajensen/tree-generator.git
 =====================================================================================
 
-PLATFORM: Windows
+REQUIREMENTS: Windows, Autodesk Maya
 VISUAL STUDIO VERSION: 2012
-VS ENVIRONMENT VARIABLES: $(MAYA_DIR) C:\Program Files (x86)\Autodesk\Maya20XX\
 
 TIPS ON USING:
 • Increasing the iterations will 'grow' the tree but also increase the poly count

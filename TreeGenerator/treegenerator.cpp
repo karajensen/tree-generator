@@ -85,7 +85,8 @@ MStatus TreeGeneratorWindow::doIt(const MArgList& args)
 
     // Convert the path to the gui .mel
     MString guipath(buffer);
-    guipath = guipath.substring(0, guipath.length()-strlen("treegenerator.mll")-1);
+    int endIndex = static_cast<int>(guipath.length()-std::string("treegenerator.mll").size()-1);
+    guipath = guipath.substring(0, endIndex);
     guipath += "treegeneratorGUI.mel";
 
     // Open the GUI .mel file
@@ -218,8 +219,8 @@ bool TreeGenerator::BuildTheTree(BranchData& branch, BranchData& trunk)
 
     //Set up progress
     DescribeProgressWindow("Building:");
-    unsigned int progressMod = (m_treedata.rule.size()/
-        m_progressIncreaseAmount)*m_progressStepAmount;
+    unsigned int progressMod = static_cast<unsigned>((m_treedata.rule.size()/
+        m_progressIncreaseAmount)*m_progressStepAmount);
 
     //Create the turtle
     Turtle turtle;
@@ -482,7 +483,7 @@ void TreeGenerator::BuildNewBranch(Turtle& turtle, int TrunkIndex, BranchData* v
     turtle.layerIndex++;
     m_meshdata.maxLayers = max(m_meshdata.maxLayers,turtle.layerIndex); 
     turtle.branchParent = turtle.branchIndex;
-    turtle.branchIndex = m_branches.size();
+    turtle.branchIndex = static_cast<int>(m_branches.size());
     turtle.branchEnded = false;
     m_branches.push_back(Branch());
     m_branches[turtle.branchIndex].sections.push_back(
@@ -596,8 +597,8 @@ bool TreeGenerator::CreateTreeGroup()
 bool TreeGenerator::CreateCurves()
 {
     DescribeProgressWindow("Meshing:");
-    unsigned int progressMod = (m_branches.size()/
-        m_progressIncreaseAmount)*m_progressStepAmount; 
+    unsigned int progressMod = static_cast<unsigned>((m_branches.size()/
+        m_progressIncreaseAmount)*m_progressStepAmount); 
 
     //Create each branch
     for(unsigned int j = 0, progress = 0; j < m_branches.size(); ++j, ++progress)
@@ -624,8 +625,8 @@ bool TreeGenerator::CreateCurves()
 bool TreeGenerator::CreateMeshes()
 {
     DescribeProgressWindow("Meshing:");
-    unsigned int progressMod = (m_branches.size()/
-        m_progressIncreaseAmount)*m_progressStepAmount; 
+    unsigned int progressMod = static_cast<unsigned>((m_branches.size()/
+        m_progressIncreaseAmount)*m_progressStepAmount); 
 
     //Create the disks
     deque<Disk> disk;
@@ -692,8 +693,8 @@ bool TreeGenerator::CreateMeshes()
 bool TreeGenerator::CreateLeaves()
 {
     DescribeProgressWindow("Leafing:");
-    unsigned int progressMod = (m_leaves.size()/
-        m_progressIncreaseAmount)*m_progressStepAmount;
+    unsigned int progressMod = static_cast<unsigned>((m_leaves.size()/
+        m_progressIncreaseAmount)*m_progressStepAmount);
 
     int vertno = 0;
     float bleed = static_cast<float>(m_fxdata.uvBleedSpace);

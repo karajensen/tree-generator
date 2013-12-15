@@ -6,9 +6,8 @@ www.KaraJensen.com
 https://github.com/karajensen/tree-generator.git
 =====================================================================================
 
-PLATFORM: Windows
+REQUIREMENTS: Windows, Autodesk Maya
 VISUAL STUDIO VERSION: 2012
-VS ENVIRONMENT VARIABLES: $(MAYA_DIR) C:\Program Files (x86)\Autodesk\Maya20XX\
 
 TIPS ON USING:
 • Increasing the iterations will 'grow' the tree but also increase the poly count
@@ -30,9 +29,18 @@ HOW TO INSTALL:
 • Use 'TreeGenerator' for the GUI in the command window
 
 HOW TO DEBUG:
+• Change the lib/include directory to your Maya path. Example paths are:
+  C:\Program Files (x86)\Autodesk\Maya2011\
+  C:\Program Files (x86)\Autodesk\Maya2012\
+  C:\Program Files\Autodesk\Maya2014\
+  
 • Click Debug. Click okay for any popups that appear.
-• In Maya, you will need to load the plugin in the plugin manager. 
+  In Maya, you will need to load the plugin in the plugin manager. 
   It's useful to write a MEL script that does this for you:
   loadPlugin "D:\\Projects\\TreeGenerator\\TreeGenerator\\treegenerator.mll;
+
 • Use 'GenerateTree' for a default tree 
-• Use 'TreeGenerator' for the GUI in the command window
+  Use 'TreeGenerator' for the GUI in the command window
+
+DEVELOPMENT UPGRADE IDEAS
+• Merging the branches/trunk meshes
