@@ -172,7 +172,6 @@
   <ItemGroup>
     <None Include="..\.gitignore" />
     <None Include="..\readme.txt" />
-    <None Include="..\Release\readme.txt" />
     <None Include="treegeneratorGUI.mel" />
   </ItemGroup>
   <ItemGroup>

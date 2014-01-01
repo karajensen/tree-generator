@@ -6,8 +6,7 @@ www.KaraJensen.com
 https://github.com/karajensen/tree-generator.git
 =====================================================================================
 
-REQUIREMENTS: Windows, Autodesk Maya
-VISUAL STUDIO VERSION: 2012
+RELEASE REQUIREMENTS: Windows, Autodesk Maya 2011, 2012 or 2014
 
 TIPS ON USING:
 • Increasing the iterations will 'grow' the tree but also increase the poly count

@@ -6,7 +6,6 @@
     <None Include="treegeneratorGUI.mel">
       <Filter>Source Files</Filter>
     </None>
-    <None Include="..\Release\readme.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="matrix.h">
