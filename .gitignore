@@ -10,6 +10,7 @@
 *.mll
 *.vcxproj.user
 *.dll.metagen
+*.pdf
 ipch/
 html/
 Resources/
