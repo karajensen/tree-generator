@@ -3,24 +3,30 @@
   <ItemGroup>
     <None Include="..\.gitignore" />
     <None Include="..\readme.txt" />
-    <None Include="treegeneratorGUI.mel">
-      <Filter>Source Files</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="matrix.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="global.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="treegenerator_components.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="treegenerator.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="vector3.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="treeComponents.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="treeGeneratorGUI.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="treeGenerator.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="common.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="treeHelpers.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="randomGenerator.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -30,8 +36,20 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="treegenerator.cpp">
+    <ClCompile Include="treeGeneratorGUI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="treeGenerator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pluginEntry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="randomGenerator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\Release\readme.txt" />
   </ItemGroup>
 </Project>

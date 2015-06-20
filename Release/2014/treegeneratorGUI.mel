@@ -131,7 +131,7 @@
                     -font "boldLabelFont" 
                     -collapsable true;  
     }
-    
+
     global proc gt_GenerateTree(int $preview)
     {
         string $gt_RArray[];
@@ -579,4 +579,5 @@
     
     showWindow TreeGenerator;
     window -edit -width $gt_WinWidth -height $gt_WinHeight TreeGenerator;
+
 }

@@ -1,150 +1,51 @@
 ﻿////////////////////////////////////////////////////////////////////////////////////////
-// Kara Jensen - mail@karajensen.com - treegenerator.cpp
+// Kara Jensen - mail@karajensen.com - treeGenerator.cpp
 ////////////////////////////////////////////////////////////////////////////////////////
 
-#include "treegenerator.h"
+#include "treeGenerator.h"
+#include "treeHelpers.h"
+#include "randomGenerator.h"
 #include <fstream>
-
-namespace
-{
-    const int RULE_NUMBER = 10;   ///< Maximum amount of rules allowed
-    const MString GENERATE_COMMAND("GenerateTree");
-    const MString GUI_COMMAND("TreeGenerator");
-}
+#include <ctime>
 
 int TreeGenerator::sm_treeNumber = 0;
-unsigned int TreeGenerator::sm_treeSeed = 0;
-MDagModifier TreeGenerator::sm_dagMod;
 
 TreeGenerator::TreeGenerator() :
     MPxCommand(),
-    m_progressIncreaseAmount(0),
-    m_progressStepAmount(0),
+    m_dagMod(std::make_unique<MDagModifier>()),
     m_meshdata(8, 8, 2, false, false, true, false),
     m_leafdata(true, 2.0f, 4.0f, 1.0f, 1.0f, 1.0f, 2),
     m_treedata(2.0, 0.9, 0.001, 10),
     m_fxdata(0.732982, 0.495995, 0.388067, 0.083772, 
-        0.0572824, 0.013138, true, true, true, 0.2, 0.01)
+             0.0572824, 0.013138, true, true, true, 0.2, 0.01)
 {
-}
-
-MStatus initializePlugin(MObject obj)
-{
-    MFnPlugin pluginFn(obj,"Kara Jensen", "1.0");
-
-    MStatus success = pluginFn.registerCommand(GENERATE_COMMAND, 
-        TreeGenerator::creator, TreeGenerator::newSyntax);
-
-    if(!success)
-    { 
-        success.perror("Register of " + GENERATE_COMMAND + " failed"); 
-        return success;
-    }
-
-    success = pluginFn.registerCommand(GUI_COMMAND, 
-        TreeGeneratorWindow::creator);
-
-    if(!success)
-    { 
-        success.perror("Register of " + GUI_COMMAND + " failed"); 
-        return success;
-    }
-    return success;
-}
-
-MStatus uninitializePlugin(MObject obj)
-{
-    MFnPlugin pluginFn(obj);
-
-    MStatus success = pluginFn.deregisterCommand(GENERATE_COMMAND);
-    if(!success)
-    { 
-        success.perror("Deregister of " + GENERATE_COMMAND + " failed"); 
-        return success;
-    }
-
-    success = pluginFn.deregisterCommand(GUI_COMMAND);
-    if(!success)
-    { 
-        success.perror("Deregister of " + GUI_COMMAND + " failed"); 
-        return success;
-    }
-    return success;
-}
-
-MStatus TreeGeneratorWindow::doIt(const MArgList& args)
-{
-    // Get the absoulute path of this .dll
-    char buffer[256];
-    HMODULE hm = nullptr;
-
-    GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | 
-        GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, 
-        (LPCSTR)"treegenerator.mll", &hm);
-    GetModuleFileNameA(hm, buffer, sizeof(buffer));
-
-    // Convert the path to the gui .mel
-    MString guipath(buffer);
-    int endIndex = static_cast<int>(guipath.length()-std::string("treegenerator.mll").size()-1);
-    guipath = guipath.substring(0, endIndex);
-    guipath += "treegeneratorGUI.mel";
-
-    // Open the GUI .mel file
-    std::ifstream gui(guipath.asChar());
-    if(!gui.is_open())
-    {
-        MGlobal::executeCommand("error \"" + guipath + " could not open\"");
-        return MStatus::kFailure;
-    }
-
-    std::string line;
-    MString command;
-    while(!gui.eof())
-    {
-        std::getline(gui, line);
-        command += line.c_str();
-    }
-
-    MGlobal::executeCommand(command);
-    return MStatus::kSuccess;
+    m_ruleChances.assign(0);
 }
 
 MStatus TreeGenerator::doIt(const MArgList& args)
 {
-    MStatus stat;
-    MArgDatabase argData(syntax(), args, &stat);
-    if(!stat)
+    // Get the user input parameters
+    MStatus status;
+    MArgDatabase argData(syntax(), args, &status);
+
+    if(!status)
     { 
-        return stat; 
+        return status; 
     }
 
     //Create the default data
-    unsigned int iterations = 4;
     BranchData trunk(1.0, 5.0, 0.2, 22.2, 5.0, 0.9);
     BranchData branch(1.0, 15.0, 0.5, 22.2, 5.0, 0.95);
 
     //Create the default rules
-    unsigned int rulep[RULE_NUMBER];
-    MString rules[RULE_NUMBER];
-    MString rulec[RULE_NUMBER];
     m_treedata.rule = "";
     MString prerule = "FGGFGGFGGF";
     MString postrule = "";
     MString start = "A";
-
-    rulec[0] = "A";
-    rules[0] = "[>FGLLLFGLLLFLLLA]^^^^^[>FGLLLFGLLLFLLLA]^^^^^^^[>FGLLLFGLLLFLLLA]";
-    rulep[0] = 100;
-
-    for(int i = 1; i < RULE_NUMBER; ++i)
-    {
-        rulep[i] = 0;
-        rules[i] = "";
-        rulec[i] = "";
-    }
-
-    GetFlagArguments(argData, prerule, postrule, start, 
-        iterations, rules, rulec, rulep, branch, trunk);
+    m_ruleIDs[0] = "A";
+    m_ruleStrings[0] = "[>FGLLLFGLLLFLLLA]^^^^^[>FGLLLFGLLLFLLLA]^^^^^^^[>FGLLLFGLLLFLLLA]";
+    m_ruleChances[0] = 100;
+    GetFlagArguments(argData, prerule, postrule, start, branch, trunk);
 
     //set preview variables
     if(m_meshdata.preview)
@@ -158,9 +59,8 @@ MStatus TreeGenerator::doIt(const MArgList& args)
     //Generate a new seed if randomize chosen
     if(m_meshdata.randomize) 
     {
-        sm_treeSeed = static_cast<unsigned int>(time(0));
+        Random::RandomizeSeed();
     }
-    srand(sm_treeSeed);
 
     //Progress window setup
     int progress = 2;
@@ -169,11 +69,11 @@ MStatus TreeGenerator::doIt(const MArgList& args)
         ++progress; 
     }
     StartProgressWindow(progress);
-    m_progressStepAmount = 2;
+    m_progressStep = 2;
 
     //Create the rule string
     m_treedata.rule = start.asChar();
-    if(!CreateRuleString(iterations, rules, rulec, rulep)) 
+    if(!CreateRuleString()) 
     { 
         EndProgressWindow(); 
         return MStatus::kFailure; 
@@ -219,44 +119,43 @@ bool TreeGenerator::BuildTheTree(BranchData& branch, BranchData& trunk)
 
     //Set up progress
     DescribeProgressWindow("Building:");
-    unsigned int progressMod = static_cast<unsigned>((m_treedata.rule.size()/
-        m_progressIncreaseAmount)*m_progressStepAmount);
+    unsigned int progressMod = static_cast<unsigned int>(
+        (m_treedata.rule.size() / m_progressIncrease) * m_progressStep);
 
     //Create the turtle
     Turtle turtle;
     turtle.world.RotateXLocal(static_cast<float>(DegToRad(90.0f)));
-    BranchData* values = &trunk;
     turtle.radius = m_treedata.initialRadius;
     turtle.branchIndex = 0;
     turtle.sectionIndex = 0;
     turtle.layerIndex = 0;
     turtle.branchParent = -1;
     turtle.branchEnded = false;
-    deque<Turtle> stack;
-
-    Float3 result;
-    int TrunkIndex = 0;
-    char current;
-    double angle = 0;
+    std::deque<Turtle> stack;
 
     //Set up tree
+    int trunkIndex = 0;
+    BranchData* values = &trunk;
     m_branches.push_back(Branch());
-    m_branches[TrunkIndex].layer = 0;
-    m_branches[TrunkIndex].parentIndex = -1;
-    m_branches[TrunkIndex].sections.push_back(Section(
-        0,0,0,static_cast<float>(m_treedata.initialRadius)));
+    m_branches[trunkIndex].layer = 0;
+    m_branches[trunkIndex].parentIndex = -1;
+    m_branches[trunkIndex].sections.push_back(Section(
+        0, 0, 0, static_cast<float>(m_treedata.initialRadius)));
 
     //navigate the turtle
     for(unsigned int j = 0, progress = 0; j < m_treedata.rule.size(); ++j, ++progress)
     {
-        current = m_treedata.rule[j];
-        switch(current)
+        Float3 result;
+        double angle = 0.0;
+
+        switch(m_treedata.rule[j])
         {
             case 'F':
             {
                 //move forward with drawing 
-                DetermineForwardMovement(&turtle, result, values->forward, 
+                result = DetermineForwardMovement(turtle, values->forward, 
                     values->forwardAngle, values->forwardVariance);
+
                 turtle.world.Translate(result);
                 
                 //change radius
@@ -275,19 +174,20 @@ bool TreeGenerator::BuildTheTree(BranchData& branch, BranchData& trunk)
             case 'G':
             {
                 //move forward without drawing
-                DetermineForwardMovement(&turtle, result, values->forward, 
+                result = DetermineForwardMovement(turtle, values->forward, 
                     values->forwardAngle, values->forwardVariance);
+
                 turtle.world.Translate(result);
                 break;
             }
             case '[':
             {
                 //push current tutle onto the stack
-                if(BranchIsAlive(j))
+                if(!TryKillBranch(j))
                 {
                     turtle.branchEnded = true;
                     stack.push_back(Turtle(turtle));
-                    BuildNewBranch(turtle,TrunkIndex,values,branch);
+                    BuildNewBranch(turtle, trunkIndex, branch, &values);
                 }
                 break;
             }
@@ -298,80 +198,81 @@ bool TreeGenerator::BuildTheTree(BranchData& branch, BranchData& trunk)
                 {
                     turtle = stack[stack.size()-1];
                     stack.pop_back();
-                    (turtle.branchIndex == TrunkIndex) ? values = &trunk : values = &branch;
+                    values = (turtle.branchIndex == trunkIndex) ? &trunk : &branch;
                 }
                 break;
             }
             case '+':
             {
                 //rotate positive Y
-                angle = (static_cast<double>(rand()%201)/100.0f)-1.0f;
+                angle = Random::Generate(-1.0, 1.0);
                 turtle.world.RotateYLocal(static_cast<float>(
-                    DegToRad(values->angle+(values->angleVariance*angle))));
+                    DegToRad(values->angle + (values->angleVariance * angle))));
                 break;
             }
             case '-':
             {
                 //rotate negative y
-                angle = (static_cast<double>(rand()%201)/100.0f)-1.0f;
+                angle = Random::Generate(-1.0, 1.0);
                 turtle.world.RotateYLocal(static_cast<float>(
-                    DegToRad(-values->angle+(values->angleVariance*angle))));
+                    DegToRad(-values->angle + (values->angleVariance * angle))));
                 break;
             }
             case '>':
             {
                 //rotate positive x
-                angle = (static_cast<double>(rand()%201)/100.0f)-1.0f;
+                angle = Random::Generate(-1.0, 1.0);
                 turtle.world.RotateXLocal(static_cast<float>(
-                    DegToRad(values->angle+(values->angleVariance*angle))));
+                    DegToRad(values->angle + (values->angleVariance * angle))));
                 break;
             }
             case '<':
             {
                 //rotate negative x
-                angle = (static_cast<double>(rand()%201)/100.0f)-1.0f;
+                angle = Random::Generate(-1.0, 1.0);
                 turtle.world.RotateXLocal(static_cast<float>(
-                    DegToRad(-values->angle+(values->angleVariance*angle))));
+                    DegToRad(-values->angle + (values->angleVariance * angle))));
                 break;
             }
             case '^':
             {
                 //rotate positive z
-                angle = (static_cast<double>(rand()%201)/100.0f)-1.0f;
+                angle = Random::Generate(-1.0, 1.0);
                 turtle.world.RotateZLocal(static_cast<float>(
-                    DegToRad(values->angle+(values->angleVariance*angle))));
+                    DegToRad(values->angle + (values->angleVariance * angle))));
                 break;
             }
             case 'v':
             {
                 //rotate negative z
-                angle = (static_cast<double>(rand()%201)/100.0f)-1.0f;
+                angle = Random::Generate(-1.0, 1.0);
                 turtle.world.RotateZLocal(static_cast<float>(
-                    DegToRad(-values->angle+(values->angleVariance*angle))));
+                    DegToRad(-values->angle + (values->angleVariance * angle))));
                 break;
             }
             case 'L':
             {
                 //Create a leaf
-                if(m_leafdata.treeHasLeaves && (turtle.branchIndex != TrunkIndex)
-                    && (turtle.layerIndex >= static_cast<int>(m_leafdata.leafLayer)) 
-                    && (turtle.sectionIndex != 0))
+                if(m_leafdata.treeHasLeaves 
+                   && (turtle.branchIndex != trunkIndex)
+                   && (turtle.layerIndex >= static_cast<int>(m_leafdata.leafLayer)) 
+                   && (turtle.sectionIndex != 0))
                 {
                     Float3 axis = m_branches[turtle.branchIndex].sections[turtle.sectionIndex].position 
                         - m_branches[turtle.branchIndex].sections[turtle.sectionIndex-1].position;
 
-                    axis.Normalize();
                     m_leaves.push_back(Leaf(turtle.world.Position(),
-                        axis,turtle.layerIndex,static_cast<float>(turtle.radius)));
+                        axis.GetNormalized(), turtle.layerIndex, static_cast<float>(turtle.radius)));
                 }
                 break;
             }
         }
+
         //Increase progress window
         if(progress >= progressMod) 
         { 
             progress = 0; 
-            AdvanceProgressWindow(m_progressStepAmount);
+            AdvanceProgressWindow(m_progressStep);
         }
 
         //Check plugin is continuing
@@ -383,12 +284,12 @@ bool TreeGenerator::BuildTheTree(BranchData& branch, BranchData& trunk)
     return true;
 }
 
-bool TreeGenerator::CreateRuleString(int iterations, MString rules[], MString rulec[], unsigned rulep[])
+bool TreeGenerator::CreateRuleString()
 {
-    string temprule = "";
+    std::string temprule = "";
     int ruleNum; 
     char rulechar;
-    for(int i = 0; i < iterations; ++i)
+    for(unsigned int i = 0; i < m_iterations; ++i)
     {
         //for each letter in the string
         for(unsigned int j = 0; j < m_treedata.rule.size(); ++j)
@@ -397,33 +298,30 @@ bool TreeGenerator::CreateRuleString(int iterations, MString rules[], MString ru
             rulechar = m_treedata.rule[j];
             for(ruleNum = 0; ruleNum < RULE_NUMBER; ++ruleNum)
             {
-                if(rulechar == (rulec[ruleNum].asChar())[0])
+                if(rulechar == (m_ruleIDs[ruleNum].asChar())[0])
                 {
-                    if(rulep[ruleNum] == 100)
+                    if(m_ruleChances[ruleNum] == 100)
                     {
-                        temprule += rules[ruleNum].asChar();
+                        temprule += m_ruleStrings[ruleNum].asChar();
                     }
-                    else if(rulep[ruleNum] == 0)     
+                    else if (m_ruleChances[ruleNum] != 0)
                     {
-                        break;
-                    }
-                    else
-                    {
-                        unsigned prob = rand()%101;
-                        if(prob <= rulep[ruleNum])
+                        if(Random::Generate(0, 100) <= static_cast<int>(m_ruleChances[ruleNum]))
                         {
-                            temprule += rules[ruleNum].asChar();
+                            temprule += m_ruleStrings[ruleNum].asChar();
                         }
                     }
                     break;
                 }
             }
+
             //no rule found, leave in string
             if(ruleNum == RULE_NUMBER)
             {
                 temprule += rulechar;
             }
         }
+
         m_treedata.rule = temprule;
         temprule = "";
 
@@ -435,11 +333,10 @@ bool TreeGenerator::CreateRuleString(int iterations, MString rules[], MString ru
     return true;
 }
 
-bool TreeGenerator::BranchIsAlive(unsigned int& index)
+bool TreeGenerator::TryKillBranch(unsigned int& index)
 {
-    //check prob of branch dying
-    unsigned int prob = rand()%101;
-    if(prob < m_treedata.branchDeathProbability)
+    //check probability of branch dying
+    if(Random::Generate(0, 100) < static_cast<int>(m_treedata.branchDeathProbability))
     {
         //remove all symbols up until corresponding ]
         int searchnumber = 1;
@@ -459,17 +356,17 @@ bool TreeGenerator::BranchIsAlive(unsigned int& index)
                 break;
             }
         }
-        return false;
+        return true;
     }
-    return true;
+    return false;
 }
 
-void TreeGenerator::BuildNewBranch(Turtle& turtle, int TrunkIndex, BranchData* values, BranchData& trunk)
+void TreeGenerator::BuildNewBranch(Turtle& turtle, int trunkIndex, BranchData& trunk, BranchData** values)
 {
     //change values used if moving from trunk to branch
-    if(turtle.branchIndex == TrunkIndex)
+    if(turtle.branchIndex == trunkIndex)
     {
-        values = &trunk;
+        *values = &trunk;
     }
 
     //change radius
@@ -481,10 +378,11 @@ void TreeGenerator::BuildNewBranch(Turtle& turtle, int TrunkIndex, BranchData* v
     
     //start a new branch
     turtle.layerIndex++;
-    m_meshdata.maxLayers = max(m_meshdata.maxLayers,turtle.layerIndex); 
+    m_meshdata.maxLayers = max(m_meshdata.maxLayers, turtle.layerIndex); 
     turtle.branchParent = turtle.branchIndex;
     turtle.branchIndex = static_cast<int>(m_branches.size());
     turtle.branchEnded = false;
+
     m_branches.push_back(Branch());
     m_branches[turtle.branchIndex].sections.push_back(
         Section(turtle.world.Position(), static_cast<float>(turtle.radius)));
@@ -503,10 +401,7 @@ bool TreeGenerator::MeshTheTree()
         MString("constructionHistory -q -tgl"));
     TurnOffHistory();
 
-    //create tree group
     CreateTreeGroup();
-
-    //create shaders
     CreateShaders();
 
     //Check okay to continue
@@ -517,7 +412,6 @@ bool TreeGenerator::MeshTheTree()
         return false; 
     }
 
-    //create meshes
     if(m_meshdata.createAsCurves)
     {
         //create curve tree
@@ -538,6 +432,7 @@ bool TreeGenerator::MeshTheTree()
             return false; 
         }
     }
+
     //leaf the tree
     if(m_leafdata.treeHasLeaves)
     {
@@ -550,70 +445,69 @@ bool TreeGenerator::MeshTheTree()
     }
 
     //rename all
-    sm_dagMod.doIt();
+    m_dagMod->doIt();
 
-    //finish the tree
     TurnOnHistory(hResult.asInt());
     return true;
 }
 
 bool TreeGenerator::CreateTreeGroup()
 {
-    sm_treeNumber++;
-    m_treedata.treename = MString("tf_tree_")+sm_treeNumber;
+    ++sm_treeNumber;
+    m_treedata.treename = MString("tf_tree_") + sm_treeNumber;
 
     MFnTransform transFn;
     m_treedata.tree = transFn.create();
-    m_meshdata.maxLayers++;
+    ++m_meshdata.maxLayers;
+
     for(int i = 0; i < m_meshdata.maxLayers; ++i)
     {
         m_layers.push_back(Layer());
         m_layers[i].layer = transFn.create();
-        sm_dagMod.renameNode(m_layers[i].layer,m_treedata.treename+"_Layer"+i);
-        sm_dagMod.reparentNode(m_layers[i].layer,m_treedata.tree);
+        m_dagMod->renameNode(m_layers[i].layer, m_treedata.treename + "_Layer" + i);
+        m_dagMod->reparentNode(m_layers[i].layer, m_treedata.tree);
         
         if(m_leafdata.treeHasLeaves)
         {
             m_layers[i].leaves = transFn.create();
-            sm_dagMod.renameNode(m_layers[i].leaves,m_treedata.treename+"_Layer"+i+"_Leaves");
-            sm_dagMod.reparentNode(m_layers[i].leaves,m_layers[i].layer);
+            m_dagMod->renameNode(m_layers[i].leaves, m_treedata.treename+"_Layer" + i + "_Leaves");
+            m_dagMod->reparentNode(m_layers[i].leaves, m_layers[i].layer);
         }
+
         if(!m_meshdata.createAsCurves)
         {
             m_layers[i].branches = transFn.create();
-            sm_dagMod.renameNode(m_layers[i].branches,m_treedata.treename+"_Layer"+i+"_Branches");
-            sm_dagMod.reparentNode(m_layers[i].branches,m_layers[i].layer);
+            m_dagMod->renameNode(m_layers[i].branches, m_treedata.treename + "_Layer" + i + "_Branches");
+            m_dagMod->reparentNode(m_layers[i].branches, m_layers[i].layer);
         }
     }
-    sm_dagMod.renameNode(m_treedata.tree,m_treedata.treename);
+
+    m_dagMod->renameNode(m_treedata.tree, m_treedata.treename);
     
-    if(PluginIsCancelled())
-    {
-        return false;
-    }
-    return true;
+    return !PluginIsCancelled();
 }
 
 bool TreeGenerator::CreateCurves()
 {
     DescribeProgressWindow("Meshing:");
-    unsigned int progressMod = static_cast<unsigned>((m_branches.size()/
-        m_progressIncreaseAmount)*m_progressStepAmount); 
+    unsigned int progressMod = static_cast<unsigned int>(
+        (m_branches.size() / m_progressIncrease) * m_progressStep); 
 
     //Create each branch
     for(unsigned int j = 0, progress = 0; j < m_branches.size(); ++j, ++progress)
     {
         if(m_branches[j].sections.size() > 1)
         {
-            CreateCurve(&m_branches[j], (m_treedata.treename+"_B"+j), 
+            CreateCurve(m_branches[j], m_treedata.treename + "_B" + j, 
                 m_layers[m_branches[j].layer].layer);
         }
 
         if(progress >= progressMod) 
         { 
             progress = 0; 
-            AdvanceProgressWindow(m_progressStepAmount); 
+            AdvanceProgressWindow(m_progressStep); 
         }
+
         if(PluginIsCancelled())
         {
             return false;
@@ -625,18 +519,19 @@ bool TreeGenerator::CreateCurves()
 bool TreeGenerator::CreateMeshes()
 {
     DescribeProgressWindow("Meshing:");
-    unsigned int progressMod = static_cast<unsigned>((m_branches.size()/
-        m_progressIncreaseAmount)*m_progressStepAmount); 
+    unsigned int progressMod = static_cast<unsigned int>(
+        (m_branches.size() / m_progressIncrease) * m_progressStep); 
 
     //Create the disks
-    deque<Disk> disk;
+    std::deque<Disk> disk;
     disk.push_back(Disk());
-    float angle = 360.0f/m_meshdata.trunkfaces;
+    float angle = 360.0f / m_meshdata.trunkfaces;
+
     for(unsigned int i = 0; i < m_meshdata.trunkfaces; ++i)
     {
         disk[0].points.push_back(Float3(
-            static_cast<float>(cos(DegToRad(i*angle))), 0, 
-            static_cast<float>(sin(DegToRad(i*angle)))));
+            cos(DegToRad(i * angle)), 0.0f, 
+            sin(DegToRad(i * angle))));
     }
 
     const int MAX_FACES = 3;
@@ -649,7 +544,7 @@ bool TreeGenerator::CreateMeshes()
             facenumber = MAX_FACES; 
         }
 
-        angle = 360.0f/facenumber;
+        angle = 360.0f / facenumber;
         for(int i = 0; i < facenumber; ++i)
         {
             disk[j].points.push_back(Float3(
@@ -659,20 +554,16 @@ bool TreeGenerator::CreateMeshes()
     }
 
     //Create each branch
-    Branch* Parent;
     for(unsigned int j = 0, progress = 0; j < m_branches.size(); ++j, ++progress)
     {
         if(m_branches[j].sections.size() > 1)
         {
-            Parent = nullptr;
-            if(m_branches[j].parentIndex >= 0) 
-            { 
-                Parent = &m_branches[m_branches[j].parentIndex]; 
-            }
+            Branch* parent = m_branches[j].parentIndex >= 0 ?
+                &m_branches[m_branches[j].parentIndex] : nullptr;
 
-            CreateMesh(&m_branches[j], Parent, 
-                &disk[m_branches[j].layer], 
-                (m_treedata.treename+"_BRN"+j), 
+            CreateMesh(&m_branches[j], parent, 
+                disk[m_branches[j].layer], 
+                m_treedata.treename+"_BRN" + j, 
                 m_layers[m_branches[j].layer].branches);
         }
 
@@ -680,8 +571,9 @@ bool TreeGenerator::CreateMeshes()
         if(progress >= progressMod)
         { 
             progress = 0; 
-            AdvanceProgressWindow(m_progressStepAmount); 
+            AdvanceProgressWindow(m_progressStep); 
         }
+
         if(PluginIsCancelled())
         {
             return false;
@@ -693,21 +585,21 @@ bool TreeGenerator::CreateMeshes()
 bool TreeGenerator::CreateLeaves()
 {
     DescribeProgressWindow("Leafing:");
-    unsigned int progressMod = static_cast<unsigned>((m_leaves.size()/
-        m_progressIncreaseAmount)*m_progressStepAmount);
+    unsigned int progressMod = static_cast<unsigned int>(
+        (m_leaves.size() / m_progressIncrease) * m_progressStep);
 
     int vertno = 0;
     float bleed = static_cast<float>(m_fxdata.uvBleedSpace);
     if(m_leafdata.bendAmount == 0)
     {
         vertno = 4;
-        m_leafpolycounts.append(4);
+        m_leafPolycounts.append(4);
 
         //Create indices (face1)
-        m_leafindices.append(0);    
-        m_leafindices.append(1);    
-        m_leafindices.append(3);    
-        m_leafindices.append(2);
+        m_leafIndices.append(0);    
+        m_leafIndices.append(1);    
+        m_leafIndices.append(3);    
+        m_leafIndices.append(2);
 
         //Create the uvs (face1)
         m_leafU.append(0.0f);   
@@ -726,20 +618,20 @@ bool TreeGenerator::CreateLeaves()
     else
     {
         vertno = 6;
-        m_leafpolycounts.append(4); 
-        m_leafpolycounts.append(4);
+        m_leafPolycounts.append(4); 
+        m_leafPolycounts.append(4);
 
         //create indices for face 1
-        m_leafindices.append(0);    
-        m_leafindices.append(1);    
-        m_leafindices.append(3);    
-        m_leafindices.append(2);
+        m_leafIndices.append(0);    
+        m_leafIndices.append(1);    
+        m_leafIndices.append(3);    
+        m_leafIndices.append(2);
 
         //create indices for face 2
-        m_leafindices.append(2);    
-        m_leafindices.append(3);    
-        m_leafindices.append(5);    
-        m_leafindices.append(4); 
+        m_leafIndices.append(2);    
+        m_leafIndices.append(3);    
+        m_leafIndices.append(5);    
+        m_leafIndices.append(4); 
 
         //Create the uvs
         m_leafU.append(0.0f + bleed);  
@@ -771,20 +663,21 @@ bool TreeGenerator::CreateLeaves()
     //create leaves
     for(int i = 0; i < vertno; ++i)
     {
-        m_leafverts.push_back(Float3());
+        m_leafVertices.push_back(Float3());
     }
 
     for(unsigned int i = 0, progress = 0; i < m_leaves.size(); ++i, ++progress)
     {
-        CreateLeaf(&m_leaves[i],(m_treedata.treename+"_LVS"+i),
+        CreateLeaf(m_leaves[i], m_treedata.treename + "_LVS" + i,
             m_layers[m_leaves[i].layer].leaves);
 
         //Advance progress bar
         if(progress >= progressMod)
         { 
             progress = 0; 
-            AdvanceProgressWindow(m_progressStepAmount); 
+            AdvanceProgressWindow(m_progressStep); 
         }
+
         if(PluginIsCancelled())
         {
             return false;
@@ -793,89 +686,86 @@ bool TreeGenerator::CreateLeaves()
     return true;
 }
 
-void TreeGenerator::CreateLeaf(Leaf* leaf, MString& meshname, MObject& layer)
+void TreeGenerator::CreateLeaf(Leaf& leaf, MString& meshname, MObject& layer)
 {
     MFloatPointArray vertices;
     MFnMesh meshfn;
 
     //Create the verts
-    double angle = double(rand()%721)-360.0f;
+    double angle = Random::Generate(-360, 360);
 
     float width = static_cast<float>(m_leafdata.width + 
-        (m_leafdata.widthVariance*((static_cast<double>(
-        rand()%201)/100.0f)-1.0f)));
+        (m_leafdata.widthVariance * Random::Generate(-1.0, 1.0)));
 
     float height = static_cast<float>(m_leafdata.height + 
-        (m_leafdata.heightVariance*((static_cast<double>(
-        rand()%201)/100.0f)-1.0f)));
+        (m_leafdata.heightVariance * Random::Generate(-1.0, 1.0)));
 
-    Matrix mat = Matrix::CreateRotateArbitrary(
-        leaf->sectionAxis,static_cast<float>(DegToRad(angle)));
+    Matrix rotation = Matrix::CreateRotateArbitrary(
+        leaf.sectionAxis, static_cast<float>(DegToRad(angle)));
 
     if(m_leafdata.bendAmount != 0)
     {
-        m_leafverts[0].Set(-(width/2),0,0);
-        m_leafverts[1].Set((width/2),0,0);
+        m_leafVertices[0].Set(-width/2, 0, 0);
+        m_leafVertices[1].Set(width/2, 0, 0);
 
-        m_leafverts[2].Set(-(width/2),static_cast<float>(m_leafdata.bendAmount
-            *((static_cast<double>(rand()%201)/100.0f)-1.0f)),(height/2));
+        m_leafVertices[2].Set(-width/2, static_cast<float>(
+            m_leafdata.bendAmount * Random::Generate(-1.0, 1.0)), height/2);
 
-        m_leafverts[3].Set((width/2),static_cast<float>(m_leafdata.bendAmount
-            *((static_cast<double>(rand()%201)/100.0f)-1.0f)),(height/2));
+        m_leafVertices[3].Set(width/2, static_cast<float>(
+            m_leafdata.bendAmount * Random::Generate(-1.0, 1.0)), height/2);
 
-        m_leafverts[4].Set(-(width/2),0,height);
-        m_leafverts[5].Set((width/2),0,height);
+        m_leafVertices[4].Set(-width/2, 0, height);
+        m_leafVertices[5].Set(width/2, 0, height);
     }
     else
     {
-        m_leafverts[0].Set(-(width/2),0,0);
-        m_leafverts[1].Set((width/2),0,0);
-        m_leafverts[2].Set(-(width/2),0,height);
-        m_leafverts[3].Set((width/2),0,height);
+        m_leafVertices[0].Set(-width/2, 0, 0);
+        m_leafVertices[1].Set(width/2, 0, 0);
+        m_leafVertices[2].Set(-width/2, 0, height);
+        m_leafVertices[3].Set(width/2, 0, height);
     }
 
     //rotate verts
-    for(unsigned int i = 0; i < m_leafverts.size(); ++i)
+    for (Float3& vertex : m_leafVertices)
     {
-        m_leafverts[i] *= mat;  
+        vertex *= rotation;  
     }
 
     //move verts roughly outside branch
-    Float3 extra = m_leafverts[3]-m_leafverts[1];
-    extra = (leaf->sectionAxis.Cross(extra)).Cross(leaf->sectionAxis);
-    extra.Normalize();
-    extra *= (leaf->sectionRadius/2.0f);
-    leaf->position += extra;
+    Float3 offset = m_leafVertices[3] - m_leafVertices[1];
+    offset = (leaf.sectionAxis.Cross(offset)).Cross(leaf.sectionAxis);
+    offset.Normalize();
+    offset *= leaf.sectionRadius / 2.0f;
+    leaf.position += offset;
 
     //save verts
-    for(unsigned int i = 0; i < m_leafverts.size(); ++i)    
+    for(unsigned int i = 0; i < m_leafVertices.size(); ++i)    
     {
-        vertices.append(leaf->position.x+m_leafverts[i].x, 
-            leaf->position.y+m_leafverts[i].y, leaf->position.z+m_leafverts[i].z);
+        vertices.append(leaf.position.x + m_leafVertices[i].x, 
+            leaf.position.y + m_leafVertices[i].y, 
+            leaf.position.z + m_leafVertices[i].z);
     }
 
     //Create the mesh
-    leaf->mesh = meshfn.create(vertices.length(), m_leafpolycounts.length(), 
-        vertices, m_leafpolycounts, m_leafindices, m_leafU, m_leafV);
+    leaf.mesh = meshfn.create(vertices.length(), m_leafPolycounts.length(), 
+        vertices, m_leafPolycounts, m_leafIndices, m_leafU, m_leafV);
 
-    meshfn.assignUVs(m_leafpolycounts, m_leafUVids); 
-    sm_dagMod.renameNode(leaf->mesh,meshname);
-    sm_dagMod.reparentNode(leaf->mesh,layer);
+    meshfn.assignUVs(m_leafPolycounts, m_leafUVids); 
+    m_dagMod->renameNode(leaf.mesh, meshname);
+    m_dagMod->reparentNode(leaf.mesh, layer);
 
     //Shade the mesh
-    if(m_fxdata.createLeafShader)
-    {
-        MGlobal::executeCommand("sets -e -fe " + 
-            m_leafdata.leafshadername + "SG " + meshfn.name());
-    }
-    else
-    {
-        MGlobal::executeCommand("sets -e -fe initialShadingGroup " + meshfn.name());
-    }
+    const auto shader = m_fxdata.createLeafShader ? 
+        m_leafdata.leafshadername + "SG " : "initialShadingGroup ";
+
+    MGlobal::executeCommand("sets -e -fe " + shader + meshfn.name());
 }
 
-void TreeGenerator::CreateMesh(Branch* branch, Branch* parent, 
-    Disk* disk, MString& meshname, MObject& layer)
+void TreeGenerator::CreateMesh(Branch* branch, 
+                               Branch* parent, 
+                               Disk& disk, 
+                               MString& meshname, 
+                               MObject& layer)
 {
     MFloatPointArray vertices;
     MIntArray polycounts;
@@ -885,7 +775,7 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
     MFloatArray uCoord;
     MFloatArray vCoord;
 
-    int facenumber = static_cast<int>(disk->points.size());
+    int facenumber = static_cast<int>(disk.points.size());
     int sectionnumber = static_cast<int>(branch->sections.size());
 
     int pastindex = 0;
@@ -897,7 +787,6 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
     int uvringnumber = facenumber+1;
     float bleed = (float)m_fxdata.uvBleedSpace;
 
-    //INITIAL BRANCH RING
     //Get matrices for initial ring
     if(parent != nullptr) 
     { 
@@ -911,54 +800,55 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
 
     for(int j = 0; j < facenumber; ++j)
     {
-        Float3 position = disk->points[j];
+        Float3 position = disk.points[j];
         position *= branch->scaleMat;
         position *= branch->rotationMat;
         position += branch->sections[0].position; 
         vertices.append(position.x, position.y, position.z);
-        uCoord.append(ChangeRange(static_cast<float>(j), 0.0f,
-            static_cast<float>(facenumber), bleed,(1.0f-bleed)));
+
         vCoord.append(bleed);
+        uCoord.append(ChangeRange(static_cast<float>(j), 0.0f,
+            static_cast<float>(facenumber), bleed,  1.0f - bleed));
     }
-    uCoord.append(1.0f-bleed);
+    uCoord.append(1.0f - bleed);
     vCoord.append(bleed);
 
     //other branch rings
     for(int i = 1; i < sectionnumber; ++i)
     {
-        sIndex = i*facenumber;
-        sPastindex = (i-1)*facenumber;
-        uvIndex = i*uvringnumber;
-        uvPastindex = (i-1)*uvringnumber;
+        sIndex = i * facenumber;
+        sPastindex = (i-1) * facenumber;
+        uvIndex = i * uvringnumber;
+        uvPastindex = (i-1) * uvringnumber;
 
         //create scale matrix
-        Section* section = &branch->sections[i];
+        const Section& section = branch->sections[i];
         branch->scaleMat.MakeIdentity();
-        branch->scaleMat.Scale(section->radius);
+        branch->scaleMat.Scale(section.radius);
 
         //create rotation matrix
         branch->rotationMat.MakeIdentity();
-        if(i == sectionnumber-1)
+        if(i == sectionnumber - 1)
         {
             //rotate in direction of past axis
-            Float3 up(0,1.0f,0);
-            Float3 pastaxis = branch->sections[i].position-branch->sections[i-1].position;
-            Float3 rotaxis = pastaxis.Cross(up);
-            rotaxis.Normalize();
-            float angle = up.Angle(pastaxis);
-            branch->rotationMat = Matrix::CreateRotateArbitrary(rotaxis,angle);
+            Float3 up(0.0f, 1.0f, 0.0f);
+            Float3 pastAxis = branch->sections[i].position - branch->sections[i-1].position;
+            Float3 rotAxis = pastAxis.Cross(up);
+            rotAxis.Normalize();
+            float angle = up.Angle(pastAxis);
+            branch->rotationMat = Matrix::CreateRotateArbitrary(rotAxis, angle);
         }
         else
         {
             //rotate half way between past/future
-            Float3 up(0,1.0f,0);
-            Float3 axis = (branch->sections[i].position-branch->sections[i-1].position) 
-                + (branch->sections[i+1].position-branch->sections[i].position); //past axis+future axis
+            Float3 up(0.0f, 1.0f, 0.0f);
+            Float3 axis = (branch->sections[i].position - branch->sections[i-1].position) 
+                + (branch->sections[i+1].position - branch->sections[i].position); //past axis+future axis
 
-            Float3 rotaxis = axis.Cross(up);
-            rotaxis.Normalize();
-            float angle = up.Angle(axis);
-            branch->rotationMat = Matrix::CreateRotateArbitrary(rotaxis,angle);
+            Float3 rotAxis = axis.Cross(up);
+            rotAxis.Normalize();
+            const float angle = up.Angle(axis);
+            branch->rotationMat = Matrix::CreateRotateArbitrary(rotAxis, angle);
         }
 
         //find v coordinate
@@ -969,75 +859,72 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
         for(int j = 0; j < facenumber; ++j)
         {
             //create vertex
-            Float3 position = disk->points[j];
+            Float3 position = disk.points[j];
             position *= branch->scaleMat; //scale
             position *= branch->rotationMat; //rotate
-            position += section->position; //translate
+            position += section.position; //translate
             vertices.append(position.x, position.y, position.z);
             uCoord.append(uCoord[j]);
             vCoord.append(vcoordinate);
 
             //create faces
             polycounts.append(4);
-            index = sIndex+j;
-            pastindex = sPastindex+j;
+            index = sIndex + j;
+            pastindex = sPastindex + j;
             indices.append(index);  
-            indices.append(((index+1) == (sIndex+facenumber)) ? sIndex : (index+1));
-            indices.append(((pastindex+1) == (sPastindex+facenumber)) ? sPastindex : (pastindex+1));
+            indices.append(index + 1 == sIndex + facenumber ? sIndex : (index + 1));
+            indices.append(pastindex + 1 == sPastindex + facenumber ? sPastindex : (pastindex + 1));
             indices.append(pastindex);
 
             //create uvids
-            uvIDs.append(uvIndex+j);
-            uvIDs.append(uvIndex+j+1);
-            uvIDs.append(uvPastindex+j+1);
-            uvIDs.append(uvPastindex+j);
+            uvIDs.append(uvIndex + j);
+            uvIDs.append(uvIndex + j + 1);
+            uvIDs.append(uvPastindex + j + 1);
+            uvIDs.append(uvPastindex + j);
         }
 
-        uCoord.append(1.0f-bleed);
+        uCoord.append(1.0f - bleed);
         vCoord.append(vcoordinate);
     }
 
     //cap the end of the branch
-    if((branch->children.size() == 0) && m_meshdata.capEnds)
+    if(branch->children.empty() && m_meshdata.capEnds)
     {
         //create middle vert
         Float3 middle = branch->sections[branch->sections.size()-1].position;
         vertices.append(middle.x, middle.y, middle.z);
 
         //create middle uvs
-        Float3 middlepos(0.5,0,0.5);
+        Float3 middlepos(0.5f, 0.0f, 0.5f);
         uCoord.append(middlepos.x);
         vCoord.append(middlepos.z);
         int middleuv = uCoord.length()-1;
         int startuv = uCoord.length();
-
-        int index1, index2;
         int topindex = vertices.length()-2;
         int midindex = vertices.length()-1;
         int topj = facenumber-1;
         Matrix capscale;
         capscale.Scale(0.25f);
-        Float3 position;
 
         //note, this goes backwards
         for(int j = 0; j < facenumber; ++j)
         {
             //create faces
             polycounts.append(3);
-            index1 = topindex-j;
-            index2 = (j == topj) ? topindex : index1-1;
+            int index1 = topindex-j;
+            int index2 = j == topj ? topindex : index1-1;
             indices.append(index2);
             indices.append(midindex);
             indices.append(index1);
 
             //create uvs
-            position = (disk->points[topj-j]);
+            Float3 position = disk.points[topj - j];
             position *= capscale;
             uCoord.append(position.x + middlepos.x); 
             vCoord.append(position.z + middlepos.z);
-            uvIDs.append(startuv+j);
+            uvIDs.append(startuv + j);
             uvIDs.append(middleuv);
-            uvIDs.append((j == topj) ? startuv : startuv+j+1);
+            uvIDs.append(j == topj ? startuv : startuv + j + 1);
         }
     }
 
@@ -1047,38 +934,32 @@ void TreeGenerator::CreateMesh(Branch* branch, Branch* parent,
         polycounts.length(), vertices, polycounts, indices, uCoord, vCoord);
 
     meshfn.assignUVs(polycounts, uvIDs);
-    sm_dagMod.renameNode(branch->mesh, meshname);
-    sm_dagMod.reparentNode(branch->mesh, layer);
+    m_dagMod->renameNode(branch->mesh, meshname);
+    m_dagMod->reparentNode(branch->mesh, layer);
 
     //Shade the mesh
-    if(m_fxdata.createTreeShader)
-    {
-        MGlobal::executeCommand("sets -e -fe " + 
-            m_treedata.treeshadername + "SG " + meshfn.name());
-    }
-    else
-    {
-        MGlobal::executeCommand("sets -e -fe initialShadingGroup " + meshfn.name());
-    }
+    const auto shader = m_fxdata.createTreeShader ? 
+        m_treedata.treeshadername + "SG " : "initialShadingGroup ";
+
+    MGlobal::executeCommand("sets -e -fe " + shader + meshfn.name());
 }
 
-void TreeGenerator::CreateCurve(Branch* branch, MString& meshname, MObject& layer)
+void TreeGenerator::CreateCurve(Branch& branch, MString& meshname, MObject& layer)
 {
     MPointArray editPoints;
-    MFnNurbsCurve curveFn;
-    Float3 position;
 
-    for(unsigned int i = 0; i < branch->sections.size(); ++i)
+    for(unsigned int i = 0; i < branch.sections.size(); ++i)
     {
-        position = branch->sections[i].position;
+        const Float3& position = branch.sections[i].position;
         editPoints.append(position.x, position.y, position.z);
     }
 
-    branch->mesh = curveFn.createWithEditPoints(editPoints,
-        1, MFnNurbsCurve::kOpen,false,true,true);
+    MFnNurbsCurve curveFn;
+    branch.mesh = curveFn.createWithEditPoints(editPoints,
+        1, MFnNurbsCurve::kOpen, false, true, true);
 
-    sm_dagMod.renameNode(branch->mesh,meshname);
-    sm_dagMod.reparentNode(branch->mesh,layer);
+    m_dagMod->renameNode(branch.mesh, meshname);
+    m_dagMod->reparentNode(branch.mesh, layer);
 }
 
 bool TreeGenerator::CreateShaders()
@@ -1171,12 +1052,14 @@ bool TreeGenerator::CreateShaders()
 void TreeGenerator::DeleteNodes()
 {
     sm_treeNumber--;
+
     if(m_fxdata.createLeafShader)
     {
         MGlobal::executeCommand("delete " + m_leafdata.leafshadername);
         MGlobal::executeCommand("delete " + m_leafdata.leafshadername + "SG");
         MGlobal::executeCommand("delete " + m_leafdata.leafshadername + "_file");
     }
+
     if(m_fxdata.createTreeShader)
     {
         MGlobal::executeCommand("delete " + m_treedata.treeshadername);
@@ -1187,32 +1070,35 @@ void TreeGenerator::DeleteNodes()
             MGlobal::executeCommand("delete " + m_treedata.treeshadername + "_bump");
         }
     }
-    sm_dagMod.deleteNode(m_treedata.tree);
-    sm_dagMod.doIt();
+
+    m_dagMod->deleteNode(m_treedata.tree);
+    m_dagMod->doIt();
 }
 
-void TreeGenerator::DetermineForwardMovement(Turtle* turtle, Float3& result, 
-    double forward, double ang, double variation)
+Float3 TreeGenerator::DetermineForwardMovement(const Turtle& turtle, 
+                                               double forward, 
+                                               double angle, 
+                                               double variation) const
 {
-    //Get number between -1 and 1
-    double x = static_cast<double>(((rand()%201)/100.0f)-1.0f);
-    double y = static_cast<double>(((rand()%201)/100.0f)-1.0f);
-    double z = static_cast<double>(((rand()%201)/100.0f)-1.0f);
-    float l = static_cast<float>(((rand()%201)/100.0f)-1.0f);
+    const double x = Random::Generate(-1.0, 1.0);
+    const double y = Random::Generate(-1.0, 1.0);
+    const double z = Random::Generate(-1.0, 1.0);
+    const float length = Random::Generate(-1.0f, 1.0f);
 
     //determine direction, axis must be normalized
-    result = turtle->world.Forward();
-    result *= Matrix::CreateRotateY(static_cast<float>(DegToRad(ang*y)));
-    result *= Matrix::CreateRotateX(static_cast<float>(DegToRad(ang*x)));
-    result *= Matrix::CreateRotateZ(static_cast<float>(DegToRad(ang*z)));
+    Float3 result = turtle.world.Forward();
+    result *= Matrix::CreateRotateY(static_cast<float>(DegToRad(angle*y)));
+    result *= Matrix::CreateRotateX(static_cast<float>(DegToRad(angle*x)));
+    result *= Matrix::CreateRotateZ(static_cast<float>(DegToRad(angle*z)));
 
     //determine forward amount
-    result *= static_cast<float>(forward + (variation*l));
+    result *= static_cast<float>(forward + (variation * length));
+    return result;
 }
 
 void TreeGenerator::StartProgressWindow(int stepNumber)
 {
-    m_progressIncreaseAmount = 100/stepNumber;
+    m_progressIncrease = 100 / stepNumber;
 
     //Initialise the progress window
     if(!MProgressWindow::reserve())
@@ -1220,8 +1106,9 @@ void TreeGenerator::StartProgressWindow(int stepNumber)
         EndProgressWindow();
         MProgressWindow::reserve();
     }
+
     MProgressWindow::setTitle(MString("Progress"));
-    MProgressWindow::setProgressRange(0,100);
+    MProgressWindow::setProgressRange(0, 100);
     MProgressWindow::setInterruptable(true);
     MProgressWindow::setProgress(0);
     MProgressWindow::setProgressStatus("Starting:");
@@ -1239,7 +1126,7 @@ bool TreeGenerator::PluginIsCancelled()
     return false;
 }
 
-void TreeGenerator::DescribeProgressWindow(char* Description)
+void TreeGenerator::DescribeProgressWindow(const char* Description)
 {
     MProgressWindow::setProgressStatus(Description);
 }
@@ -1254,9 +1141,9 @@ void TreeGenerator::EndProgressWindow()
     MProgressWindow::endProgress();
 }
 
-void TreeGenerator::TurnOnHistory(int turnon)
+void TreeGenerator::TurnOnHistory(int shouldTurnOn)
 { 
-    if(turnon == 1)
+    if(shouldTurnOn == 1)
     { 
         MGlobal::executeCommand(MString("constructionHistory -tgl on")); 
     } 
@@ -1328,9 +1215,12 @@ MSyntax TreeGenerator::newSyntax()
     return syntax;
 }
 
-void TreeGenerator::GetFlagArguments(const MArgDatabase& argData, MString prerule, 
-    MString postrule, MString start, unsigned int& iterations, MString* rules, 
-    MString* rulec, unsigned int* rulep, BranchData& branch, BranchData& trunk)
+void TreeGenerator::GetFlagArguments(const MArgDatabase& argData, 
+                                     MString prerule, 
+                                     MString postrule, 
+                                     MString start, 
+                                     BranchData& branch,
+                                     BranchData& trunk)
 {
     if(argData.numberOfFlagsUsed() > 0)
     {
@@ -1349,7 +1239,7 @@ void TreeGenerator::GetFlagArguments(const MArgDatabase& argData, MString prerul
         argData.getFlagArgument("-fa", 0, m_meshdata.trunkfaces);      
         argData.getFlagArgument("-fa", 1, m_meshdata.branchfaces);
         argData.getFlagArgument("-fa", 2, m_meshdata.faceDecrease);         
-        argData.getFlagArgument("-i", 0, iterations);
+        argData.getFlagArgument("-i", 0, m_iterations);
         argData.getFlagArgument("-a", 0, branch.angle);                
         argData.getFlagArgument("-a", 1, branch.angleVariance);          
         argData.getFlagArgument("-f", 0, branch.forward);              
@@ -1384,12 +1274,22 @@ void TreeGenerator::GetFlagArguments(const MArgDatabase& argData, MString prerul
         const int HALF_MAX_RULES = RULE_NUMBER/2;
         for(int i = 0; i < HALF_MAX_RULES; ++i)
         {
-            argData.getFlagArgument("-r1",i,rules[i]);    
-            argData.getFlagArgument("-rc1",i,rulec[i]);  
-            argData.getFlagArgument("-rp1",i,rulep[i]);
-            argData.getFlagArgument("-r2",i,rules[HALF_MAX_RULES+i]);  
-            argData.getFlagArgument("-rc2",i,rulec[HALF_MAX_RULES+i]); 
-            argData.getFlagArgument("-rp2",i,rulep[HALF_MAX_RULES+i]);
+            argData.getFlagArgument("-r1", i, m_ruleStrings[i]);    
+            argData.getFlagArgument("-rc1", i, m_ruleIDs[i]);  
+            argData.getFlagArgument("-rp1", i, m_ruleChances[i]);
+            argData.getFlagArgument("-r2", i, m_ruleStrings[HALF_MAX_RULES + i]);  
+            argData.getFlagArgument("-rc2", i, m_ruleIDs[HALF_MAX_RULES + i]); 
+            argData.getFlagArgument("-rp2", i, m_ruleChances[HALF_MAX_RULES + i]);
         }
     }
+}
+
+bool TreeGenerator::isUndoable() const
+{ 
+    return false; 
+}
+
+void* TreeGenerator::creator() 
+{ 
+    return new TreeGenerator();
 }

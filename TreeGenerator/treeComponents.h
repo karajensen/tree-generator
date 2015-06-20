@@ -1,9 +1,13 @@
 ////////////////////////////////////////////////////////////////////////////////////////
-// Kara Jensen - mail@karajensen.com - treegenerator_components.h
+// Kara Jensen - mail@karajensen.com - treeComponents.h
 ////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
-#include "global.h"
+#include "common.h"
+#include "vector3.h"
+#include "matrix.h"
+#include <string>
+#include <deque>
 
 /**
 * Holds Shading data for the tree/leaves
@@ -58,7 +62,7 @@ struct TreeData
     double branchRadiusDecrease;       ///< The amount to decrease the radius
     double minimumRadius;              ///< The minimum allowed radius
     unsigned branchDeathProbability;   ///< The probability from 0-100% of the branch dying
-    string rule;                       ///< The rule string the tree abides by
+    std::string rule;                  ///< The rule string the tree abides by
     MString treename;                  ///< The name of the tree
     MString treeshadername;            ///< The name of the tree's shader
     MObject tree;                      ///< Tree Maya object
@@ -239,8 +243,8 @@ struct Branch
     int layer;                ///< Layer that the branch exists on
     int vertNumber;           ///< Number of vertices of this branch
     MObject mesh;             ///< The maya mesh for the branch
-    deque<Section> sections;  ///< The number of sections for this branch
-    deque<int> children;      ///< A container of children extending from this branch
+    std::deque<Section> sections;  ///< The number of sections for this branch
+    std::deque<int> children;      ///< A container of children extending from this branch
 
     /**
     * Constructor
@@ -259,7 +263,7 @@ struct Branch
 */
 struct Disk
 {
-    deque<Float3> points; ///< vertices of a branch disk
+    std::deque<Float3> points; ///< vertices of a branch disk
 };
 
 /**
