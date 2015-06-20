@@ -20,4 +20,5 @@ TestResults/
 TreeGenerator/._LOG.txt
 TreeGenerator/Debug/
 TreeGenerator/Release/
-TreeGenerator/x64/
+TreeGenerator/Debugx64/
+TreeGenerator/Releasex64/s
