@@ -5,6 +5,7 @@
 #include "treeGeneratorGUI.h"
 #include <fstream>
 #include <string>
+#include <Windows.h>
 
 MStatus TreeGeneratorGUI::doIt(const MArgList& args)
 {

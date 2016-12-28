@@ -1,4 +1,5 @@
 *.opensdf
+*.opendb
 *.sdf
 *.suo
 *.db
@@ -21,4 +22,4 @@ TreeGenerator/._LOG.txt
 TreeGenerator/Debug/
 TreeGenerator/Release/
 TreeGenerator/Debugx64/
-TreeGenerator/Releasex64/s
+TreeGenerator/Releasex64/
