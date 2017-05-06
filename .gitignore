@@ -8,7 +8,6 @@
 *.ilk
 *.lib
 *.exp
-*.mll
 *.vcxproj.user
 *.dll.metagen
 *.pdf
@@ -23,3 +22,4 @@ TreeGenerator/Debug/
 TreeGenerator/Release/
 TreeGenerator/Debugx64/
 TreeGenerator/Releasex64/
+TreeGenerator/TreeGenerator.mll
