@@ -1,0 +1,583 @@
+{
+    global proc gt_WriteFile(string $filename, string $contents) 
+    {
+        $gt_fileId =`fopen $filename "w"`;
+        fprint $gt_fileId ($contents);
+        fclose $gt_fileId;
+    }
+    
+    global proc gt_LoadPreset()
+    {
+        string $gt_loadedfiles[] = `fileDialog2 -fileMode 1`;
+        if(size($gt_loadedfiles[0]) != 0)
+        {
+            string $gt_subString[];
+            tokenize $gt_loadedfiles[0] "/" $gt_subString;
+            text -edit -label ("Preset Loaded: " + $gt_subString[size($gt_subString)-1]) "gt_PresetName";
+            string $gt_command = "source \"" + $gt_loadedfiles[0] + "\" ;" ;
+            eval($gt_command); 
+            print("\nPreset Loaded!");      
+        }
+    }   
+
+    global proc gt_LoadTextureWindow()
+    {
+        string $dir = `textField -query -tx "gt_LeafTexture"`;
+        string $gt_loadedfiles[] = `fileDialog2 -fileMode 1 -dir $dir`;
+        if(size($gt_loadedfiles[0]) != 0)
+        {
+            textField -edit -tx $gt_loadedfiles[0] "gt_LeafTexture";
+        }
+    }
+
+    global proc gt_ToggleGenerateLeaves(int $useLeaves)
+    {
+        checkBox -edit -en $useLeaves "gt_leafShader";
+        floatField -edit -en $useLeaves "gt_LeafBending";    
+        floatField -edit -en $useLeaves "gt_LeafWidth";    
+        floatField -edit -en $useLeaves "gt_LeafHeight";    
+        floatField -edit -en $useLeaves "gt_LeafWidthv";                
+        floatField -edit -en $useLeaves "gt_LeafHeightv";      
+        textField -edit -en $useLeaves "gt_LeafTexture";  
+        button -edit -en $useLeaves "gt_Texturebut"; 
+        intField -edit -en $useLeaves "gt_LeafStart";                 
+    }
+
+    global proc gt_ToggleGenerateCurves(int $useCurves)
+    {
+        checkBox -edit -en $useCurves "gt_branchShader";   
+        checkBox -edit -en $useCurves "gt_bumpMapping";  
+        floatField -edit -en $useCurves "gt_bumpMappingAmount";     
+        colorSliderGrp -edit -en $useCurves "gt_branchSliderL";               
+        colorSliderGrp -edit -en $useCurves "gt_branchSliderD";    
+        checkBox -edit -en $useCurves "gt_TreeTips";         
+        intField -edit -en $useCurves "gt_TrunkFacesInput";                                                  
+        intField -edit -en $useCurves "gt_BranchFacesInput";         
+        intField -edit -en $useCurves "gt_BranchFacesDecInput";           
+    }
+    
+    global proc gt_CreateHelpEntry(string $labelname, string $description)
+    {
+        text -label ($labelname) -align "left" -font "smallBoldLabelFont";    
+        text -label ($description) -align "left" -font "smallPlainLabelFont";
+        gt_GenerateBoldSpacer();    
+    }
+
+    global proc gt_HelpWindowShow()
+    {
+        if(`window -exists "TreeGeneratorHelp"`)
+        { 
+            windowPref -remove "TreeGeneratorHelp";    
+            deleteUI -wnd "TreeGeneratorHelp"; 
+        }
+        window -title "TreeGeneratorHelp" 
+               -resizeToFitChildren false TreeGeneratorHelp;
+
+        columnLayout;
+        rowColumnLayout -numberOfColumns 3 -cw 1 5 -cw 2 20 -cw 3 220;
+
+        gt_GenerateBoldSpacer();    
+        gt_GenerateBoldSpacer();                   
+        gt_GenerateBoldSpacer();        
+        gt_GenerateBoldSpacer();    
+        
+        gt_CreateHelpEntry("F", "Move forward and create vertices in the mesh");
+        gt_CreateHelpEntry("G", "Move forward without creating vertices");
+        gt_CreateHelpEntry("[", "Create a new branch");
+        gt_CreateHelpEntry("]", "Finishes the branch");
+        gt_CreateHelpEntry("v", "Rotate anticlockwise around z axis");
+        gt_CreateHelpEntry("^", "Rotate clockwise around z axis");
+        gt_CreateHelpEntry("<", "Rotate anticlockwise around x axis");
+        gt_CreateHelpEntry(">", "Rotate clockwise around x axis");
+        gt_CreateHelpEntry("-", "Rotate anticlockwise around y axis");
+        gt_CreateHelpEntry("+", "Rotate clockwise around y axis");
+        gt_CreateHelpEntry("L", "Create a leaf");
+             
+        setParent ..;
+        rowColumnLayout -numberOfColumns 2 -cw 1 5 -cw 2 240;
+        
+        gt_GenerateBoldSpacer();
+        text -label "During an iteration, each symbol is substituted" 
+             -align "left" -font "smallPlainLabelFont";
+             
+        gt_GenerateBoldSpacer(); 
+        text -label "for what it equals given the % probability. If not" 
+            -align "left" -font "smallPlainLabelFont";
+            
+        gt_GenerateBoldSpacer();
+        text -label "within the probability, the symbol is removed." 
+            -align "left" -font "smallPlainLabelFont";
+            
+        showWindow TreeGeneratorHelp;
+        window -edit -width 240 -height 240 TreeGeneratorHelp;
+    }
+    
+    global proc gt_GeneratePlainSpacer()
+    {
+        text -label "" -align "left" -font "smallPlainLabelFont";
+    }
+    
+    global proc gt_GenerateBoldSpacer()
+    {
+        text -label "" -align "left" -font "smallBoldLabelFont";
+    }   
+    
+    global proc gt_GenerateFrameLayout(string $labelname)
+    {
+        frameLayout -label ($labelname)
+                    -cl false 
+                    -w 240 
+                    -borderStyle "etchedIn" 
+                    -font "boldLabelFont" 
+                    -collapsable true;  
+    }
+
+    global proc gt_GenerateTree(int $preview)
+    {
+        string $gt_RArray[];
+        string $gt_CArray[];
+        int $gt_PArray[];
+        clear($gt_RArray);
+        clear($gt_CArray);
+        clear($gt_PArray);
+        
+        int $MAX_RULES = 11;
+        for($i = 1; $i < $MAX_RULES; $i++)
+        {
+            $gt_RArray[size($gt_RArray)] = `textField -query -tx ("gt_Rule"+$i+"Input")`;
+            $gt_CArray[size($gt_CArray)] = `textField -query -tx ("gt_RuleC"+$i+"Input")`;
+            $gt_PArray[size($gt_PArray)] = `intField -query -v ("gt_RuleP"+$i+"Input")`;
+        }
+        
+        float $colorl[] = `colorSliderGrp -query -rgbValue "gt_branchSliderL"`;    
+        float $colord[] = `colorSliderGrp -query -rgbValue "gt_branchSliderD"`;        
+        
+        GenerateTree 
+        -preview $preview
+        -branchdeath
+          `intField -query -v "gt_BranchDeath"`
+        -iterations 
+          `intField -query -v "gt_IterationsInput"`
+        -file 
+          `textField -query -tx "gt_LeafTexture"`
+        -leaf 
+          `checkBox -query -v "gt_LeafTree"` 
+          `intField -query -v "gt_LeafStart"`
+        -angle 
+          `floatField -query -v "gt_AngleInput"` 
+          `floatField -query -v "gt_AngleVarInput"`
+        -tangle 
+          `floatField -query -v "gt_AngleInputT"` 
+          `floatField -query -v "gt_AngleVarInputT"`
+        -prerule 
+          `textField -query -tx "gt_RulePre"` 
+          `textField -query -tx "gt_RuleStart"` 
+          `textField -query -tx "gt_RulePost"`
+        -forward 
+          `floatField -query -v "gt_ForwardInput"` 
+          `floatField -query -v "gt_ForwardVarInput"`
+          `floatField -query -v "gt_ForwardAngInput"`
+        -tforward 
+          `floatField -query -v "gt_ForwardInputT"` 
+          `floatField -query -v "gt_ForwardVarInputT"` 
+          `floatField -query -v "gt_ForwardAngInputT"`
+        -meshdata 
+          `checkBox -query -v "gt_UsePreview"` 
+          `checkBox -query -v "gt_TreeTips"` 
+          `checkBox -query -v "gt_Randomize"`
+        -leafdata 
+          `floatField -query -v "gt_LeafBending"` 
+          `floatField -query -v "gt_LeafHeight"` 
+          `floatField -query -v "gt_LeafWidth"` 
+          `floatField -query -v "gt_LeafHeightv"` 
+          `floatField -query -v "gt_LeafWidthv"`
+        -colordata 
+          `checkBox -query -v "gt_branchShader"` 
+          `checkBox -query -v "gt_leafShader"` 
+          `checkBox -query -v "gt_bumpMapping"` 
+          `floatField -query -v "gt_bumpMappingAmount"` 
+          `floatField -query -v "gt_uvBleedSpace"`
+        -radius 
+          `floatField -query -v "gt_RadiusI"` 
+          `floatField -query -v "gt_RadiusB"` 
+          `floatField -query -v "gt_RadiusDec"` 
+          `floatField -query -v "gt_RadiusDecT"` 
+          `floatField -query -v "gt_RadiusM"`
+        -faces 
+          `intField -query -v "gt_TrunkFacesInput"` 
+          `intField -query -v "gt_BranchFacesInput"` 
+          `intField -query -v "gt_BranchFacesDecInput"`
+
+        -color  $colorl[0] $colorl[1] $colorl[2] $colord[0] $colord[1] $colord[2]
+        -rule1  $gt_RArray[0] $gt_RArray[1] $gt_RArray[2] $gt_RArray[3] $gt_RArray[4]
+        -rule2  $gt_RArray[5] $gt_RArray[6] $gt_RArray[7] $gt_RArray[8] $gt_RArray[9]
+        -rulec1 $gt_CArray[0] $gt_CArray[1] $gt_CArray[2] $gt_CArray[3] $gt_CArray[4]
+        -rulec2 $gt_CArray[5] $gt_CArray[6] $gt_CArray[7] $gt_CArray[8] $gt_CArray[9]
+        -rulep1 $gt_PArray[0] $gt_PArray[1] $gt_PArray[2] $gt_PArray[3] $gt_PArray[4]
+        -rulep2 $gt_PArray[5] $gt_PArray[6] $gt_PArray[7] $gt_PArray[8] $gt_PArray[9];   
+    }
+    
+    global proc string gt_GetIntFieldValue(string $fieldname) 
+    { 
+        return ("intField -edit -v " 
+             + (`intField -query -v ($fieldname)`)
+             + " \"" + $fieldname + "\";\n");   
+    }
+    
+    global proc string gt_GetFloatFieldValue(string $fieldname) 
+    { 
+        return ("floatField -edit -v " 
+             + (`floatField -query -v ($fieldname)`)
+             + " \"" + $fieldname + "\";\n");   
+    }   
+    
+    global proc string gt_GetTextFieldValue(string $fieldname) 
+    {
+        return "textField -edit -tx \"" 
+            + (`textField -query -tx ($fieldname)`) 
+            + "\" \"" + $fieldname + "\";\n";   
+    }
+    
+    global proc string gt_GetCheckBoxValue(string $fieldname) 
+    {
+        return "checkBox -edit -v " 
+            + (`checkBox -query -v ($fieldname)`)
+            + " \"" + $fieldname + "\";\n"; 
+    }
+    
+    global proc gt_CreateHeader(string $headername, string $tooltip) 
+    {
+        text -label ($headername) 
+             -align "left" 
+             -font "smallBoldLabelFont" 
+             -ann ($tooltip);
+    }        
+    
+    global proc gt_SavePreset()
+    {
+        string $gt_savedfiles[] = `fileDialog2 -ff "*.mel" -fileMode 0`;
+        if(size($gt_savedfiles[0]) != 0)
+        {
+            string $gt_subString[];
+            tokenize $gt_savedfiles[0] "/" $gt_subString;
+            text -edit -label ("Preset Loaded: " + 
+                $gt_subString[size($gt_subString)-1]) "gt_PresetName";
+        
+            string $gt_preset = "";
+            int $MAX_RULES = 11;
+            for($i = 1; $i < $MAX_RULES; $i++)
+            {   
+                $gt_preset += gt_GetTextFieldValue("gt_Rule"+ $i + "Input");
+                $gt_preset += gt_GetTextFieldValue("gt_RuleC"+ $i + "Input");
+                $gt_preset += gt_GetTextFieldValue("gt_RuleP"+ $i + "Input");
+            }
+            
+            $gt_preset += gt_GetIntFieldValue("gt_BranchDeath");
+            $gt_preset += gt_GetIntFieldValue("gt_IterationsInput");
+            $gt_preset += gt_GetFloatFieldValue("gt_AngleInput");           
+            $gt_preset += gt_GetFloatFieldValue("gt_AngleInputT");      
+            $gt_preset += gt_GetFloatFieldValue("gt_AngleVarInput");
+            $gt_preset += gt_GetFloatFieldValue("gt_AngleVarInputT");
+            $gt_preset += gt_GetTextFieldValue("gt_RulePre");
+            $gt_preset += gt_GetTextFieldValue("gt_RuleStart");
+            $gt_preset += gt_GetTextFieldValue("gt_RulePost");
+            $gt_preset += gt_GetTextFieldValue("gt_LeafTexture");
+            $gt_preset += gt_GetFloatFieldValue("gt_ForwardInput");
+            $gt_preset += gt_GetFloatFieldValue("gt_ForwardInputT");
+            $gt_preset += gt_GetFloatFieldValue("gt_ForwardVarInput");
+            $gt_preset += gt_GetFloatFieldValue("gt_ForwardVarInputT");
+            $gt_preset += gt_GetFloatFieldValue("gt_ForwardAngInput");
+            $gt_preset += gt_GetFloatFieldValue("gt_ForwardAngInputT");
+            $gt_preset += gt_GetFloatFieldValue("gt_RadiusI");
+            $gt_preset += gt_GetFloatFieldValue("gt_RadiusB");
+            $gt_preset += gt_GetFloatFieldValue("gt_RadiusDec");
+            $gt_preset += gt_GetFloatFieldValue("gt_RadiusDecT");
+            $gt_preset += gt_GetFloatFieldValue("gt_RadiusM");
+            $gt_preset += gt_GetIntFieldValue("gt_TrunkFacesInput");
+            $gt_preset += gt_GetIntFieldValue("gt_BranchFacesInput");
+            $gt_preset += gt_GetIntFieldValue("gt_BranchFacesDecInput");
+            $gt_preset += gt_GetFloatFieldValue("gt_LeafBending");
+            $gt_preset += gt_GetFloatFieldValue("gt_LeafWidth");
+            $gt_preset += gt_GetFloatFieldValue("gt_LeafWidthv");
+            $gt_preset += gt_GetFloatFieldValue("gt_LeafHeight");
+            $gt_preset += gt_GetFloatFieldValue("gt_LeafHeightv");  
+            $gt_preset += gt_GetIntFieldValue("gt_LeafStart");
+            $gt_preset += gt_GetFloatFieldValue("gt_bumpMappingAmount");
+            $gt_preset += gt_GetFloatFieldValue("gt_uvBleedSpace");
+            $gt_preset += gt_GetCheckBoxValue("gt_branchShader");
+            $gt_preset += gt_GetCheckBoxValue("gt_leafShader");
+            $gt_preset += gt_GetCheckBoxValue("gt_bumpMapping");
+            $gt_preset += gt_GetCheckBoxValue("gt_Randomize");
+            $gt_preset += gt_GetCheckBoxValue("gt_UsePreview");
+            $gt_preset += gt_GetCheckBoxValue("gt_TreeTips");
+            $gt_preset += gt_GetCheckBoxValue("gt_LeafTree");
+
+            float $gt_LG[] = `colorSliderGrp -query -rgbValue "gt_branchSliderL"`;
+            float $gt_DG[] = `colorSliderGrp -query -rgbValue "gt_branchSliderD"`;
+            
+            $gt_preset += "colorSliderGrp -edit -rgbValue " + $gt_LG[0] 
+                + " " + $gt_LG[1] + " " + $gt_LG[2] + " \"gt_branchSliderL\";\n";   
+            
+            $gt_preset += "colorSliderGrp -edit -rgbValue " + $gt_DG[0] 
+                + " " + $gt_DG[1] + " " + $gt_DG[2] + " \"gt_branchSliderD\";\n";              
+        
+            gt_WriteFile($gt_savedfiles[0], $gt_preset);
+            print("\nPreset Saved!");
+        }
+    }
+
+    if(`window -exists "TreeGenerator"`)
+    { 
+        windowPref -remove "TreeGenerator";    
+        deleteUI -wnd "TreeGenerator"; 
+    }
+    window -title "TreeGenerator" -resizeToFitChildren false TreeGenerator;
+
+    int $gt_WinWidth = 275;
+    int $gt_WinHeight = 400;
+    int $gt_Col1Width = 110;
+    int $gt_Col2Width = 120;
+    int $gt_CheckSize = 20;
+    string $gt_StartingRule = "[>FGLLLFGLLLFLLLA]^^^^^[>FGLLLFGLLLFLLLA]^^^^^^^[>FGLLLFGLLLFLLLA]";
+
+    string $gt_MainColLayout = `columnLayout`;
+    string $gt_TabLayout = `tabLayout`;
+    string $gt_OptLayout = `scrollLayout`;  
+    
+    gt_GenerateFrameLayout("Tree Presets");
+    rowColumnLayout -numberOfColumns 1 -cw 1 ($gt_Col1Width + $gt_Col2Width);    
+         
+    text -label "Preset Loaded: None"
+         -h 20 
+         -align "left"  
+         -font "smallPlainLabelFont" "gt_PresetName";
+         
+    button -label "Save as preset" -command "gt_SavePreset();";
+    button -label "Load preset" -command "gt_LoadPreset();"; 
+    
+    gt_GeneratePlainSpacer();
+    setParent ..;     
+    setParent ..;   
+    gt_GenerateFrameLayout("Tree Options");
+    rowColumnLayout -numberOfColumns 2 -cw 1 $gt_Col1Width -cw 2 $gt_Col2Width; 
+    gt_GeneratePlainSpacer();                                                                        
+    gt_GeneratePlainSpacer();
+    
+    gt_CreateHeader("Randomize tree:", "Randomize the generation");    
+    checkBox -v true -label "" -w $gt_CheckSize -h $gt_CheckSize "gt_Randomize";
+    
+    gt_CreateHeader("Iterations:", "Number of layers for the tree");         
+    intField -v 4 -min 1 "gt_IterationsInput";
+    
+    gt_CreateHeader("Initial Radius:", "Initial radius of trunk");
+    floatField -v 2.0 "gt_RadiusI";                            
+    
+    gt_CreateHeader("Minimum Radius:", "Smallest radius branch can be");     
+    floatField -v 0.001 -min 0.001 "gt_RadiusM";
+    
+    gt_CreateHeader("Branching Radius:", "Branch radius overall multiplier");
+    floatField -v 0.9 -min 0.0 -max 1.0 "gt_RadiusB";
+    
+    gt_CreateHeader("Branch Death (%):", "% Chance of a branch dying");
+    intField -v 10 -min 0 -max 100 "gt_BranchDeath";
+    
+    setParent ..;
+    rowColumnLayout -numberOfColumns 3 -cw 1 $gt_Col1Width -cw 2 60 -cw 3 60;   
+    
+    gt_GeneratePlainSpacer();      
+    text -label "Branch" -align "left" -font "smallPlainLabelFont";       
+    text -label "Trunk" -align "left" -font "smallPlainLabelFont";
+    
+    gt_CreateHeader("Angle (deg):", "Angle turned to generate a branch in Degrees"); 
+    floatField -v 22.2 -min 0.0 -max 360.0 "gt_AngleInput"; 
+    floatField -v 22.2 -min 0.0 -max 360.0 "gt_AngleInputT"; 
+    
+    gt_CreateHeader("Angle Variation:", "Amount of variation of angle in Degrees"); 
+    floatField -v 5.0 -min 0.0 -max 360.0 "gt_AngleVarInput"; 
+    floatField -v 5.0 -min 0.0 -max 360.0 "gt_AngleVarInputT"; 
+
+    gt_CreateHeader("Forward Amount:", "Amount moved forward up the tree");
+    floatField -v 1.0 "gt_ForwardInput";
+    floatField -v 1.0 "gt_ForwardInputT";
+
+    gt_CreateHeader("Forward Variation:", "Amount of movement variation of forward");      
+    floatField -v 0.5 -min 0.0 "gt_ForwardVarInput";
+    floatField -v 0.2 -min 0.0 "gt_ForwardVarInputT";
+
+    gt_CreateHeader("Forward Angle:", "Amount of angle variation of forward in Degrees");
+    floatField -v 15.0 -min 0.0 -max 360.0 "gt_ForwardAngInput";
+    floatField -v 5.0 -min 0.0 -max 360.0 "gt_ForwardAngInputT";
+
+    gt_CreateHeader("Radius Decrease:", "Amount multiplied by radius along a branch");
+    floatField -v 0.95 -min 0.0 -max 1.0 "gt_RadiusDec";               
+    floatField -v 0.9 -min 0.0 -max 1.0 "gt_RadiusDecT";
+    
+    gt_GeneratePlainSpacer();   
+    setParent ..;
+    setParent ..;
+    gt_GenerateFrameLayout("Tree Rules");
+    rowColumnLayout -numberOfColumns 2 -cw 1 57 -cw 2 173;
+    gt_GeneratePlainSpacer();
+    gt_GeneratePlainSpacer();
+
+    text -label "" -h 23 -font "smallPlainLabelFont";          
+    button -label "Key Definitions" -h 23 -command "gt_HelpWindowShow()";
+    gt_GeneratePlainSpacer();
+    gt_GeneratePlainSpacer();   
+    
+    gt_CreateHeader("Prerule:", "Symbols added to start of final rule");
+    textField -editable true -text "FGGFGGFGGF" "gt_RulePre";  
+    
+    gt_CreateHeader("Start:", "Starting symbol for rule");
+    textField -editable true -text "A" "gt_RuleStart";  
+
+    setParent ..;    
+    rowColumnLayout -numberOfColumns 6 -cw 1 22 -cw 2 18 -cw 3 15 -cw 4 127 -cw 5 18 -cw 6 30;
+    
+    int $MAX_RULES = 11;
+    for($i = 1; $i < $MAX_RULES; $i++)
+    { 
+        string $number = $i;
+        if($i < 10)
+        {
+            $number = "0"+$i;
+        }
+        gt_CreateHeader($number+":", "");
+        textField -editable true ("gt_RuleC"+$i+"Input");  
+
+        gt_CreateHeader(" =", ""); 
+        textField -editable true ("gt_Rule"+$i+"Input");  
+        
+        gt_CreateHeader(" %", "Chance rule is substituted"); 
+        intField -v 0 -min 0 -max 100 ("gt_RuleP"+$i+"Input");      
+    }       
+    
+    textField -edit -text "A" "gt_RuleC1Input";
+    textField -edit -text $gt_StartingRule "gt_Rule1Input";
+    intField -edit -v 100 "gt_RuleP1Input";
+    
+    setParent ..; 
+    rowColumnLayout -numberOfColumns 2 -cw 1 57 -cw 2 173;
+    
+    gt_CreateHeader("Postrule:", "Symbols added to end of final rule");
+    textField -editable true -text "" "gt_RulePost";  
+    
+    gt_GeneratePlainSpacer();   
+    setParent ..;  
+    setParent ..;    
+    gt_GenerateFrameLayout("Tree Meshing");
+    rowColumnLayout -numberOfColumns 2 -cw 1 150 -cw 2 80;    
+    gt_GeneratePlainSpacer();     
+    gt_GeneratePlainSpacer();
+    
+    gt_CreateHeader("Generate as curves:", "Creates a tree of curves");
+    checkBox -v false -label ""
+             -w $gt_CheckSize -h $gt_CheckSize 
+             -onc "gt_ToggleGenerateCurves(0);" 
+             -ofc "gt_ToggleGenerateCurves(1);" "gt_UsePreview";
+    
+    gt_CreateHeader("Cap Tree Tips:", "Fill in tips of tree");
+    checkBox -v false -label "" -w $gt_CheckSize -h $gt_CheckSize "gt_TreeTips";
+    
+    gt_CreateHeader("Trunk Cylinder Faces:", "Number of faces around the trunk");
+    intField -v 8 -min 3 "gt_TrunkFacesInput";                        
+    
+    gt_CreateHeader("Branch Cylinder Faces:", "Number of faces around branches");
+    intField -v 8 -min 3 "gt_BranchFacesInput";                        
+    
+    gt_CreateHeader("Branch Face Decrease:", "Number of faces to reduce per branch layer");
+    intField -v 2 -min 0 "gt_BranchFacesDecInput"; 
+    
+    gt_GeneratePlainSpacer();
+    setParent ..; 
+    setParent ..;                                 
+    setParent ..;
+    string $gt_LeavesLayout = `scrollLayout`;
+    gt_GenerateFrameLayout("Leaf Options");
+    rowColumnLayout -numberOfColumns 2 -cw 1 150 -cw 2 80;  
+    gt_GeneratePlainSpacer();                                                                              
+    gt_GeneratePlainSpacer();
+    
+    gt_CreateHeader("Generate Leaves:", "Create leaves for the tree");
+    checkBox -v true -label "" 
+             -w $gt_CheckSize -h $gt_CheckSize 
+             -onc "gt_ToggleGenerateLeaves(1);"
+             -ofc "gt_ToggleGenerateLeaves(0);" "gt_LeafTree";  
+    
+    gt_CreateHeader("Leaf Bending:", "Curl for leaves; making this 0 creates a single flat poly");
+    floatField -v 1.0 "gt_LeafBending";
+    
+    gt_CreateHeader("Leaf Width:", "Width of the leaf poly");                                               
+    floatField -v 2.0 "gt_LeafWidth";
+    
+    gt_CreateHeader("Leaf Height:", "Height of the leaf poly");
+    floatField -v 4.0 "gt_LeafHeight";
+    
+    gt_CreateHeader("Leaf Width Variation:", "Amount of variation of leaf width");
+    floatField -v 1.0 -min 0 "gt_LeafWidthv";
+    
+    gt_CreateHeader("Leaf Height Variation:", "Amount of variation of leaf height");
+    floatField -v 1.0 -min 0 "gt_LeafHeightv";
+    
+    gt_CreateHeader("Leaf Start Layer:", "Layer leaves will start creating on");
+    intField -v 2 -min 0 "gt_LeafStart";
+                        
+    setParent ..;
+    rowColumnLayout -numberOfColumns 3 -cw 1 80 -cw 2 132 -cw 3 18;
+    
+    gt_CreateHeader("Texture File:", "Full path to the leaf texture");
+    textField -editable true -text "" "gt_LeafTexture";  
+    button -label ">" -height 18 -command "gt_LoadTextureWindow()" "gt_Texturebut";
+    
+    gt_GeneratePlainSpacer();
+    setParent ..;
+    setParent ..;
+    setParent ..;
+    string $gt_FXLayout = `scrollLayout`;
+    gt_GenerateFrameLayout("Shading Options");
+    rowColumnLayout -numberOfColumns 2 -cw 1 150 -cw 2 80;    
+    gt_GeneratePlainSpacer();                                                                           
+    gt_GeneratePlainSpacer();    
+    
+    gt_CreateHeader("Create Branch Shader:", "Create a shader for the branch/trunk");
+    checkBox -v true -label "" -w $gt_CheckSize -h $gt_CheckSize "gt_branchShader";   
+    
+    gt_CreateHeader("Create Leaf Shader:", "Create a shader for the leaves");
+    checkBox -v true -label "" -w $gt_CheckSize -h $gt_CheckSize "gt_leafShader";                
+    
+    gt_CreateHeader("Use bump mapping:", "Use bump mapping for the branch shader");
+    checkBox -v true -label "" -w $gt_CheckSize -h $gt_CheckSize "gt_bumpMapping";               
+    
+    gt_CreateHeader("Bump mapping depth:", "Amount of bump mapping");
+    floatField -v 0.2 "gt_bumpMappingAmount";
+    
+    gt_CreateHeader("UV bleed space:", "Border space for UVs");
+    floatField -v 0.01 -min 0.0 -max 0.9 "gt_uvBleedSpace";
+    
+    gt_CreateHeader("Branch color (light):", "Light color of branch");
+    colorSliderGrp -cw1 5 -h 20 -rgbValue 0.732982 0.495995 0.388067 "gt_branchSliderL";
+    
+    gt_CreateHeader("Branch color (dark):", "Dark color of branch");
+    colorSliderGrp -cw1 5 -h 20 -rgbValue 0.083772 0.0572824 0.013138 "gt_branchSliderD";
+    
+    gt_GeneratePlainSpacer();
+    setParent ..;
+    setParent ..;
+    setParent ..; 
+    setParent ..;
+    
+    button -label "Preview" -width $gt_WinWidth -height 25 -command "gt_GenerateTree(1);";   
+    button -label "Generate" -width $gt_WinWidth -height 25 -command "gt_GenerateTree(0);";   
+    button -label "Reset" -width $gt_WinWidth -height 25 -command "TreeGenerator";
+    
+    setParent ..; 
+    tabLayout -edit -tabLabel $gt_OptLayout "Tree" 
+              -tabLabel $gt_LeavesLayout "Leaves" 
+              -tabLabel $gt_FXLayout "Shading" 
+              -width $gt_WinWidth 
+              -height $gt_WinHeight $gt_TabLayout;  
+    
+    showWindow TreeGenerator;
+    window -edit -width $gt_WinWidth -height $gt_WinHeight TreeGenerator;
+
+}
