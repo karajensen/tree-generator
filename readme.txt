@@ -6,8 +6,8 @@ www.KaraJensen.com
 https://github.com/karajensen/tree-generator.git
 =====================================================================================
 
-RELEASE REQUIREMENTS: Windows, Autodesk Maya 2017
-BUILD REQUIREMENTS: Windows, Visual Studio 2015, Autodesk Maya 2017
+RELEASE REQUIREMENTS: Windows, Autodesk Maya 2020
+BUILD REQUIREMENTS: Windows, Visual Studio 2019, Autodesk Maya 2020
 
 TIPS ON USING:
 • Increasing the iterations will 'grow' the tree but also increase the poly count
@@ -29,8 +29,8 @@ HOW TO INSTALL:
 • Use 'TreeGenerator' for the GUI in the command window
 
 HOW TO DEBUG:
-• Change the lib/include directory to your Maya path
-  eg. C:\Program Files\Autodesk\Maya20XX\
+• Create environment variable MAYA_SDK_DIR that points to where the
+  SDK lives (eg. C:\Maya2020-DEVKIT_Windows)
   
 • Click Debug. Click okay for any popups that appear.
   In Maya, you will need to load the plugin in the plugin manager. 
