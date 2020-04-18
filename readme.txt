@@ -6,6 +6,7 @@ www.KaraJensen.com
 https://github.com/karajensen/tree-generator.git
 =====================================================================================
 
+ENVIRONMENT VARIABLES: MAYA_SDK_DIR
 RELEASE REQUIREMENTS: Windows, Autodesk Maya 2020
 BUILD REQUIREMENTS: Windows, Visual Studio 2019, Autodesk Maya 2020
 
