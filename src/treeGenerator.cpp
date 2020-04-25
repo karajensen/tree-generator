@@ -18,7 +18,7 @@ TreeGenerator::TreeGenerator()
     , m_leafdata(true, 2.0f, 4.0f, 1.0f, 1.0f, 1.0f, 2)
     , m_treedata(2.0, 0.9, 0.001, 10)
     , m_fxdata(0.732982, 0.495995, 0.388067, 0.083772, 
-             0.0572824, 0.013138, true, true, true, 0.2, 0.01)
+               0.0572824, 0.013138, true, true, true, 0.2, 0.01)
 {
     m_ruleChances.assign(0);
 }

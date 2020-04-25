@@ -3,9 +3,11 @@
 ////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
+
 #include "common.h"
 #include "vector3.h"
 #include "matrix.h"
+
 #include <string>
 #include <deque>
 
