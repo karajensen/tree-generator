@@ -3,8 +3,9 @@
 ////////////////////////////////////////////////////////////////////////////////////////
 
 #include "randomGenerator.h"
-#include <time.h>
 #include "common.h"
+
+#include <time.h>
 
 std::default_random_engine Random::sm_generator;
 

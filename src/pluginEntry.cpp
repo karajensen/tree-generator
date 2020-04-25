@@ -6,6 +6,7 @@
 #include "randomGenerator.h"
 #include "treeGenerator.h"
 #include "treeGeneratorGUI.h"
+
 #include <maya/MFnPlugin.h> // only include once per project
 
 namespace

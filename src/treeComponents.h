@@ -29,8 +29,8 @@ struct ShadingData
     /**
     * Constructor
     * @param lightRGB The light color components for shading
-	* @param darkRGB The dark color components for shading
-	* @param usetreeShader Whether to create a tree shader or not
+    * @param darkRGB The dark color components for shading
+    * @param usetreeShader Whether to create a tree shader or not
     * @param useleafshader Whether to create a shader for the leaves
     * @param bump Whether to use bump mapping with the tree shader
     * @param bleedAmount Space allowed between UV points and edge

@@ -4,7 +4,7 @@
 
 #pragma once
 
-//required for maya 32bit
+// Required for maya 32bit
 #pragma warning(disable: 4005)
 #ifdef WIN32
 #define NT_PLUGIN
@@ -13,7 +13,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-//required for maya includes
+// Required for maya includes
 #include <iostream>
 
 #include "maya/MPxCommand.h"
@@ -36,5 +36,4 @@
 #include "maya/MFnDependencyNode.h"
 #include "maya/MSelectionList.h"
 
-//required for maya includes
 using namespace std;
