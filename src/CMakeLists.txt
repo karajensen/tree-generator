@@ -7,6 +7,7 @@ add_definitions(-DTESTING_EXPORTS)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(SRC_LIST
+    ../readme.txt
     TreeGeneratorGUI.mel
     vector3.h
     common.h
